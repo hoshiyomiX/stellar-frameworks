@@ -4,7 +4,7 @@
 
 **Deterministic coding workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-5.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.2.0-blue.svg)](skill/stellar-coding-agent/CHANGELOG.md)
 
 Structures coding tasks as a **phase state machine** with traceability IDs, artifact templates, source state verification, and file-based agent memory. Designed for the [z.ai](https://z.ai) platform.
 
@@ -23,17 +23,10 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ```bash
 # 1. Clone into your project
 cd ~/my-project
-git clone https://github.com/hoshiyomiX/stellar-coding-agent.git _sc
-cp -r _sc/skill/stellar-coding-agent skill/
-cp _sc/setup.sh setup.sh
-cp _sc/boot.sh boot.sh
-rm -rf _sc
+git clone https://github.com/hoshiyomiX/stellar-coding-agent.git
 
-# 2. Install (copies skill/ → platform skills/)
-bash setup.sh
-
-# 3. Bootstrap each new session (self-heals + starts dev server)
-bash boot.sh
+# 2. Bootstrap (install + auto-update + dev server — one command)
+bash stellar-coding-agent/boot.sh
 ```
 
 Invoke in any session:
@@ -44,18 +37,7 @@ Skill(command="stellar-coding-agent")
 
 Look for `☄️ STELLAR · v5.2.0 · ACTIVE` — confirms the framework loaded.
 
-## What Each Command Does
-
-| Command | Purpose |
-|---------|---------|
-| `bash setup.sh` | One-time install: copies `skill/` (git) → `skills/` (platform). Run after cloning. |
-| `bash boot.sh` | Per-session bootstrap: checks remote for updates (fast-forward pull), self-heals skill files if wiped, deploys splash page, starts dev server. |
-
-## Uninstall
-
-```bash
-rm -rf ~/my-project/skills/stellar-coding-agent ~/my-project/skill ~/my-project/setup.sh ~/my-project/boot.sh
-```
+That's it. `boot.sh` handles everything: first-time install, auto-updates from remote, self-healing if files get wiped, and dev server startup. Run it once per session.
 
 ---
 
@@ -131,8 +113,8 @@ The z.ai platform may wipe the `skills/` directory on session reset. `boot.sh` h
 
 ```
 stellar-coding-agent/
-├── boot.sh                           # Session bootstrap (self-heal + dev server)
-├── setup.sh                          # One-time installer
+├── boot.sh                           # Install + session bootstrap (single entry point)
+├── setup.sh                          # [Legacy] Standalone installer — boot.sh handles this now
 ├── README.md                         # This file
 ├── skill/stellar-coding-agent/       # Git-tracked source (copied to skills/ on install)
 │   ├── SKILL.md                      # Core framework (phases, SSV, error recovery, PCR)
@@ -178,11 +160,11 @@ v5.0.0 is a philosophical reset based on an honest audit:
 
 | Version | Summary |
 |---------|---------|
-| [**v5.2.0**](CHANGELOG.md) | Agent memory system (Hermes+Memweave inspired), complexity tiers, compact PCR, path safety, triggering improvements. |
-| [**v5.1.0**](CHANGELOG.md) | Completion signal moved to high-attention zone, abbreviation floor added. |
-| [v5.0.0](CHANGELOG.md) | Philosophical reset. Removed compliance theater, kept useful tools. Added `boot.sh` self-heal. |
-| [v4.6.0](CHANGELOG.md) | Source State Verification (SSV). Evidence tiers in attestation. |
-| [v4.5.0](CHANGELOG.md) | Coexistence mode with fullstack-dev. *(Removed in v5.0.0)* |
-| [v4.4.0](CHANGELOG.md) | Git error classification and safety rules. |
-| [v4.3.0](CHANGELOG.md) | OUTCOME gate, evidence requirement, defect counter. |
-| [v4.0.0](CHANGELOG.md) | Complete redesign: phase state machine, artifact templates, traceability IDs. |
+| [**v5.2.0**](skill/stellar-coding-agent/CHANGELOG.md) | Agent memory system (Hermes+Memweave inspired), complexity tiers, compact PCR, path safety, triggering improvements. |
+| [**v5.1.0**](skill/stellar-coding-agent/CHANGELOG.md) | Completion signal moved to high-attention zone, abbreviation floor added. |
+| [v5.0.0](skill/stellar-coding-agent/CHANGELOG.md) | Philosophical reset. Removed compliance theater, kept useful tools. Added `boot.sh` self-heal. |
+| [v4.6.0](skill/stellar-coding-agent/CHANGELOG.md) | Source State Verification (SSV). Evidence tiers in attestation. |
+| [v4.5.0](skill/stellar-coding-agent/CHANGELOG.md) | Coexistence mode with fullstack-dev. *(Removed in v5.0.0)* |
+| [v4.4.0](skill/stellar-coding-agent/CHANGELOG.md) | Git error classification and safety rules. |
+| [v4.3.0](skill/stellar-coding-agent/CHANGELOG.md) | OUTCOME gate, evidence requirement, defect counter. |
+| [v4.0.0](skill/stellar-coding-agent/CHANGELOG.md) | Complete redesign: phase state machine, artifact templates, traceability IDs. |

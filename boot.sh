@@ -1,7 +1,7 @@
 #!/bin/bash
-# stellar-coding-agent — Session Bootstrap (git-tracked)
-# Auto-updates, self-heals skill files, and starts dev server.
-# Run once per session: cd /home/z/my-project/stellar-coding-agent && bash boot.sh
+# stellar-coding-agent — Install, self-heal, and bootstrap (git-tracked)
+# First run: installs skill files. Subsequent runs: auto-updates + self-heals + starts dev server.
+# Usage: bash stellar-coding-agent/boot.sh
 
 set -euo pipefail
 
@@ -59,16 +59,49 @@ if [ -d "$SCRIPT_DIR/.git" ]; then
   fi
 fi
 
-# ── 1. Self-heal: copy git-tracked skill/ → platform skills/ ─────
+# ── 1. Install / self-heal: copy git-tracked skill/ → platform skills/ ──
+NEED_INSTALL=false
 if [ ! -f "$INSTALL_DIR/SKILL.md" ] || ! grep -q "Phase State Machine" "$INSTALL_DIR/SKILL.md" 2>/dev/null; then
-  if [ -d "$SOURCE_DIR" ]; then
-    echo "[boot] Healing skill files → skills/"
-    rm -rf "${INSTALL_DIR:?}"
-    cp -R "$SOURCE_DIR" "$INSTALL_DIR"
-    echo "[boot] Done"
-  else
+  NEED_INSTALL=true
+fi
+
+if $NEED_INSTALL; then
+  if [ ! -d "$SOURCE_DIR" ]; then
     echo "[boot] ERROR: skill/ not found. Is this the repo root?"
     exit 1
+  fi
+  echo "[boot] Installing skill files → skills/"
+  rm -rf "${INSTALL_DIR:?}"
+  cp -R "$SOURCE_DIR" "$INSTALL_DIR"
+
+  # Verify critical files
+  ERRORS=0
+  for f in \
+    procedure/phases.md \
+    procedure/templates/problem-spec.md \
+    procedure/templates/implementation-plan.md \
+    procedure/templates/verification-report.md \
+    procedure/templates/incident-report.md \
+    procedure/decision-trees/error-resolution.md \
+    constraints/code-standards.md \
+    constraints/type-safety.md \
+    knowledge/architecture.md \
+    knowledge/conventions.md \
+    knowledge/platform-constraints.md \
+    knowledge/error-patterns.md \
+    memory-template.md; do
+    if [ -f "$INSTALL_DIR/$f" ]; then
+      : # OK
+    else
+      echo "[boot] WARNING: $f MISSING"
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+
+  if [ $ERRORS -eq 0 ]; then
+    echo "[boot] Installed successfully"
+  else
+    echo "[boot] WARNING: installed with $ERRORS missing file(s)"
   fi
 else
   echo "[boot] Skill files OK"
