@@ -1,5 +1,20 @@
 # Changelog
 
+## [5.4.0] — 2026-05-13
+
+### Changed
+
+- **No SKIP — only internal**: The "Non-Coding → SKIP" concept is replaced with a **Minimal** complexity tier. All six phases always run for ALL tasks — no exceptions. For non-coding tasks (questions, explanations, recommendations), SPECIFY, PLAN, and VERIFY run internally (the agent thinks through them without producing formal artifacts). IMPLEMENT produces the visible output. This means the framework's participation is binary: always on. The dial that turns is ceremony, not presence.
+- **Minimal PCR format**: New compact format `☄️ PCR [Minimal] Phases→internal : PASS | Evidence: <one-line result>` replaces the old `☄️ PCR [Non-Coding] SPECIFY→SKIP PLAN→SKIP IMPLEMENT→PASS VERIFY→SKIP` format. No phase is labeled SKIP — all phases ran, just internally.
+- **Task Type Awareness table**: Non-Coding row changed from `SKIP` across SPECIFY/PLAN/VERIFY to `Internal (identify question)`, `Internal (plan approach)`, `Internal (self-check)`. Explicit statement added: "No phases are ever skipped."
+- **phases.md Task Type Adaptation**: Non-Coding column added to the adaptation table. Traceability IDs now explicitly scoped to Simple/Standard/Complex tiers (Minimal does not use them).
+- **Skill description**: Rewritten to emphasize "without exception" and "complexity adapts, participation never skips." Removes all SKIP language from the trigger description.
+- **Complexity Tiers**: Four tiers now — Minimal, Simple, Standard, Complex. Minimal is the floor, not a bypass.
+
+### Why
+
+The v5.3.2 approach of marking phases as "SKIP" for non-coding tasks created an ambiguity: does SKIP mean "the phase didn't run" or "the phase ran but produced no output"? This matters because a phase that truly doesn't run means the agent didn't think through the problem before answering. By making all phases always run (even if internally), the framework ensures structured thinking happens for every interaction — the difference is just whether the thinking is visible.
+
 ## [5.3.2] — 2026-05-13
 
 ### Added

@@ -4,9 +4,9 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-5.3.2-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.4.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
 
-Structures ALL tasks — coding and non-coding — as a **phase state machine** with traceability IDs, artifact templates, source state verification, and file-based agent memory. For coding tasks, full phases with verification. For non-coding tasks, phases are SKIPPED but the framework still activates for traceability. Designed for the [z.ai](https://z.ai) platform.
+Structures ALL tasks — coding and non-coding — as a **phase state machine** with traceability IDs, artifact templates, source state verification, and file-based agent memory. For coding tasks, full phases with verification. For non-coding tasks, phases run internally (Minimal tier) but the framework still activates for traceability. Designed for the [z.ai](https://z.ai) platform.
 
 ```text
 IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
@@ -37,7 +37,7 @@ Invoke in any session:
 Skill(command="stellar-frameworks")
 ```
 
-Look for `☄️ STELLAR · v5.3.2 · ACTIVE` — confirms the framework loaded.
+Look for `☄️ STELLAR · v5.4.0 · ACTIVE` — confirms the framework loaded.
 
 That's it. `boot.sh` handles everything: first-time install, auto-updates from remote, self-healing if files get wiped, Next.js project initialization (if needed), and dev server startup. Run it once per session.
 
@@ -64,6 +64,7 @@ Not every task needs the same ceremony. The framework always runs all six phases
 
 | Tier | Criteria | PCR Format | Artifacts |
 |------|----------|-----------|-----------|
+| **Minimal** | Non-coding (question, explain, recommend) | 1-line compact | Internal (no templates) |
 | **Simple** | Single file, no schema change | 1-line compact | Abbreviated (no templates) |
 | **Standard** | Multiple files or schema change | Full block | Full templates + Traceability IDs |
 | **Complex** | Architectural, multi-service | Full block + detailed evidence | Full templates + extra detail |
@@ -80,7 +81,7 @@ The phase machine adapts beyond coding tasks:
 | **Document** | Content outline | Section plan + structure | Generate document | Format check, completeness |
 | **Visualization** | Visual requirements | Data mapping + layout | Generate chart | Visual accuracy, data integrity |
 | **Data Processing** | Data spec | Transform pipeline | Write script | Output validation, edge cases |
-| **Non-Coding** | SKIP | SKIP | Answer / explain / recommend | SKIP |
+| **Non-Coding** | Internal | Internal | Answer / explain / recommend | Internal |
 
 ### Traceability IDs
 
@@ -174,7 +175,7 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
-| [**v5.3.2**](skill/stellar-frameworks/CHANGELOG.md) | Universal activation — framework triggers for ALL tasks (coding + non-coding). Non-coding tasks get SKIP phases with compact PCR for traceability. |
+| [**v5.4.0**](skill/stellar-frameworks/CHANGELOG.md) | Adaptive complexity tiers — Minimal/Simple/Standard/Complex. All phases always run, no SKIP. Non-coding tasks use Minimal tier (phases internal, only IMPLEMENT visible). |
 | [**v5.3.1**](skill/stellar-frameworks/CHANGELOG.md) | Skill description optimized for aggressive triggering (eval 5/20 → 20/20). setup.sh version confirmation fix. |
 | [**v5.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Task type awareness, knowledge restructure (universal/platform), skill chain orchestration, memory hardening, compact verification, PCR tier, TodoWrite integration, AI/SDK error path, completion signal, boot.sh auto-bootstrap, session continuity. |
 | [**v5.2.0**](skill/stellar-frameworks/CHANGELOG.md) | Agent memory system (Hermes+Memweave inspired), complexity tiers, compact PCR, path safety, triggering improvements. |

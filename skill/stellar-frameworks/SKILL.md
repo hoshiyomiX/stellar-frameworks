@@ -1,18 +1,18 @@
 ---
 name: stellar-frameworks
-version: 5.3.2
-description: "Core workflow that structures ALL tasks through a phase machine (SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER). For coding tasks — full phases with Traceability IDs and verification. For non-coding tasks (questions, explanations, recommendations) — SPECIFY and PLAN are SKIPPED, but the framework still activates, IMPLEMENT does the work, and DELIVER outputs a Process Compliance Report. Use for every task: coding, debugging, scripts, answering questions, explaining concepts, providing recommendations, or generating code. The phase machine always activates — task type determines which phases run, not whether the framework participates."
+version: 5.4.0
+description: "Core workflow — runs ALL tasks through a phase machine (SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER) without exception. Coding tasks: full phases with Traceability IDs and verification. Non-coding tasks (questions, explanations, recommendations): Minimal tier — all phases run internally, only IMPLEMENT produces output. Every task gets a Process Compliance Report. Covers building features, fixing bugs, refactoring, writing scripts, debugging, generating code, answering questions, explaining concepts, and providing recommendations. The phase machine always activates — complexity adapts, participation never skips."
 ---
 <!-- VERSION SYNC: on bump, update (1) frontmatter above, (2) activation banner below, (3) boot.sh header, (4) setup.sh header -->
 
 ## Activation
 
 ```
-☄️ STELLAR · v5.3.2 · ACTIVE
+☄️ STELLAR · v5.4.0 · ACTIVE
    Phase State Machine · Traceability IDs · Artifact Templates · SSV · Memory · Continuity · Universal
 ```
 
-This framework structures ALL work as a phase machine. It activates for every task — coding or not. For coding tasks, full phases prevent bugs. For non-coding tasks, the framework provides traceability (a PCR record) even when most phases are SKIPPED. The phases exist because structured thinking produces better outcomes, not because every task needs a formal spec.
+This framework structures ALL work as a phase machine. It activates for every task — coding or not — without exception. What changes between tasks is the complexity tier, not whether the framework participates. Coding tasks get full phases with Traceability IDs and formal verification. Non-coding tasks (questions, explanations, recommendations) get Minimal tier — all phases still run, but SPECIFY, PLAN, and VERIFY happen internally (the agent thinks through them without outputting formal artifacts). Only IMPLEMENT produces visible work. Every task, regardless of type, gets a Process Compliance Report recording that the framework was followed.
 
 ## Limitations
 
@@ -66,17 +66,17 @@ This is not optional — regenerating proposals the user already approved is a c
 
 ## Task Type Awareness
 
-This framework is not limited to coding tasks. The phase machine adapts to the task type:
+This framework is not limited to coding tasks. The phase machine adapts to the task type. All phases always run — what changes is what each phase produces and how much ceremony surrounds it:
 
 | Task Type | SPECIFY | PLAN | IMPLEMENT | VERIFY |
 |-----------|---------|------|------------|--------|
 | **Coding** (web dev, bug fix, refactor) | Problem spec | Code steps + Traceability IDs | Write code | Lint, type check, tests |
 | **Document** (report, proposal, DOCX, PDF) | Content outline | Section plan + structure | Generate document | Format check, completeness |
 | **Visualization** (charts, diagrams, dashboards) | Visual requirements | Data mapping + layout | Generate chart | Visual accuracy, data integrity |
-| **Data Processing** (ETL, analysis, transform) | Data spec | Transform pipeline | Write script | Output validation, edge cases |
-| **Non-Coding** (question, explain, recommend) | SKIP | SKIP | Answer / explain / recommend | SKIP |
+| **Data Processing** (ETL, analysis, transform) | Data spec | Transform pipeline | Write script | Output validation |
+| **Non-Coding** (question, explain, recommend) | Internal (identify question) | Internal (plan approach) | Answer / explain / recommend | Internal (self-check) |
 
-For non-coding tasks: No Traceability IDs, no templates. The framework activates, skips SPECIFY and PLAN (the user's question IS the spec), IMPLEMENT does the actual work, VERIFY is skipped (nothing to automate), and DELIVER outputs a compact PCR recording that the task was processed. This gives every interaction a traceable record, not just coding tasks.
+No phases are ever skipped. Non-coding tasks use **Minimal** complexity tier — SPECIFY, PLAN, and VERIFY run internally (the agent thinks through them without producing formal artifacts). IMPLEMENT does the visible work. DELIVER outputs a compact PCR. No Traceability IDs, no templates. See Complexity Tiers in `procedure/phases.md`.
 
 ## Phase References
 
@@ -119,14 +119,16 @@ Full decision tree: `procedure/decision-trees/error-resolution.md`.
 
 After completing a task, output a PCR block. The format depends on task type.
 
-### Coding PCR (Simple / Standard / Complex)
+### Full PCR (Simple / Standard / Complex)
+
+Used by Coding, Document, Visualization, and Data Processing tasks based on their complexity tier.
 
 ```
 ☄️ PCR
 ├─ Tier         : Simple / Standard / Complex
 ├─ Continuation : NEW / YES (skipped SPECIFY and/or PLAN)
-├─ SPECIFY      : PASS / N/A / SKIP
-├─ PLAN         : PASS / N/A / SKIP
+├─ SPECIFY      : PASS / N/A / SKIP (continuation only)
+├─ PLAN         : PASS / N/A / SKIP (continuation only)
 ├─ IMPLEMENT    : PASS / N/A
 ├─ VERIFY       : PASS / N/A
 └─ OUTCOME      : PASS / FAIL
@@ -135,14 +137,13 @@ Evidence: [concrete results — e.g. "lint 0 errors, 4/4 traceability verified"]
 Defects found and fixed: [n]
 ```
 
-### Non-Coding PCR (questions, explanations, recommendations)
+### Minimal PCR (non-coding: questions, explanations, recommendations)
 
 ```
-☄️ PCR [Non-Coding]
-SPECIFY→SKIP PLAN→SKIP IMPLEMENT→PASS VERIFY→SKIP | Evidence: <one-line result>
+☄️ PCR [Minimal] Phases→internal : PASS | Evidence: <one-line result>
 ```
 
-Single-line format. SPECIFY, PLAN, and VERIFY are always SKIP for non-coding tasks. IMPLEMENT and OUTCOME are the only meaningful fields.
+All phases ran internally — SPECIFY, PLAN, and VERIFY produced no formal output. Only IMPLEMENT generated visible work. Single-line format.
 
 Self-graded. The evidence requirement makes fabrication harder but cannot guarantee independence.
 

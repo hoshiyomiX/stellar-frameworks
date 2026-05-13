@@ -29,11 +29,12 @@ On error: stop work, document the error, fix the root cause, return to VERIFY. I
    | User asks a follow-up question ("what about X?") | Skip SPECIFY, answer in current context |
    | User provides new requirements mid-task | Restart from SPECIFY |
    | Context compression boundary with ongoing task | Check memory, resume from last active phase |
-   | Completely new topic or explicit new instructions | Full phase machine (continue below) |
+   | Completely new topic, explicit new instructions, or `Skill()` invoked | Full phase machine (continue below) |
 
    **Critical**: If continuation is detected, DO NOT re-derive proposals, plans, or specifications the user has already seen. Use the previous output as the plan. Regenerating from scratch is a correctness bug.
 
 3. Classify complexity:
+   - **Minimal**: Knowledge question, explanation, or recommendation — no code or file output.
    - **Simple**: Single file, no schema change, no new dependencies.
    - **Standard**: Multiple files or a schema change.
    - **Complex**: Architectural changes, multi-service, or high risk.
@@ -42,6 +43,7 @@ On error: stop work, document the error, fix the root cause, return to VERIFY. I
    - **Document**: Report, proposal, DOCX, PDF, XLSX, PPT.
    - **Visualization**: Charts, diagrams, mind maps, dashboards.
    - **Data Processing**: ETL, analysis, transform, Python scripts.
+   - **Non-Coding**: Questions, explanations, recommendations — no code or file output.
 5. Check `memory/MEMORY.md` for user preferences, patterns, and key decisions. If the `memory/` directory does not exist, it will be created on first DELIVER — skip this step. For tasks requiring session continuity, also check the most recent dated file in `memory/`.
 6. If the task involves a git repository and the session was continued from a previous conversation (context compression boundary), flag the repository as "state-uncertain" and require Source State Verification in SPECIFY.
 7. Transition to SPECIFY (or IMPLEMENT/VERIFY if continuation detected).
@@ -52,22 +54,42 @@ On error: stop work, document the error, fix the root cause, return to VERIFY. I
 
 ## Task Type Adaptation
 
-The phase machine is task-type-aware. The core loop (SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER) is always the same. What changes is what each phase produces:
+The phase machine is task-type-aware. The core loop (SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER) is always the same — all phases always run. What changes is what each phase produces and how much ceremony surrounds it:
 
-| Phase | Coding | Document | Visualization | Data Processing |
-|-------|--------|----------|---------------|-----------------|
-| **SPECIFY** | Problem spec, edge cases, affected files | Content outline, target format, sections | Visual requirements, data sources, layout | Data spec, input/output schema, transforms |
-| **PLAN** | Code steps + Traceability IDs | Section plan + content depth targets | Data mapping + chart type selection | Transform pipeline + validation steps |
-| **IMPLEMENT** | Write code | Generate document (via skill) | Generate chart (via skill) | Write script + execute |
-| **VERIFY** | Lint, type check, tests | Format check, content completeness | Visual accuracy, data integrity | Output validation, edge cases |
+| Phase | Coding | Document | Visualization | Data Processing | Non-Coding |
+|-------|--------|----------|---------------|-----------------|------------|
+| **SPECIFY** | Problem spec, edge cases, affected files | Content outline, target format, sections | Visual requirements, data sources, layout | Data spec, input/output schema, transforms | Internal — identify the question |
+| **PLAN** | Code steps + Traceability IDs | Section plan + content depth targets | Data mapping + chart type selection | Transform pipeline + validation steps | Internal — plan the approach |
+| **IMPLEMENT** | Write code | Generate document (via skill) | Generate chart (via skill) | Write script + execute | Answer / explain / recommend |
+| **VERIFY** | Lint, type check, tests | Format check, content completeness | Visual accuracy, data integrity | Output validation, edge cases | Internal — self-check accuracy |
 
-Traceability IDs (IMPL-001, IMPL-002, ...) apply to all task types — they trace requirements through every phase regardless of what is being built.
+No phases are ever skipped. Non-coding tasks are classified as **Minimal** tier — SPECIFY, PLAN, and VERIFY run internally (the agent thinks through them without producing formal artifacts). Only IMPLEMENT generates visible output. See Complexity Tiers below.
+
+Traceability IDs (IMPL-001, IMPL-002, ...) apply to Simple, Standard, and Complex tiers. Minimal tier does not use Traceability IDs.
 
 ---
 
 ## Complexity Tiers & PCR Format
 
-The phase machine always runs — every task passes through all six phases. What changes between tiers is the verbosity of artifacts, not the rigor of thinking.
+The phase machine always runs — every task passes through all six phases. What changes between tiers is the verbosity of artifacts, not the rigor of thinking. No phase is ever skipped; the lowest tier runs phases internally.
+
+### Minimal (internal phases)
+
+Criteria: knowledge question, explanation, or recommendation — no code or file output.
+
+| Phase | Behavior |
+|-------|----------|
+| SPECIFY | Internal — identify the question or topic. No template output. |
+| PLAN | Internal — think about how to answer. No template output. |
+| IMPLEMENT | Produce the answer, explanation, or recommendation. |
+| VERIFY | Internal — self-check accuracy and completeness. No template output. |
+| DELIVER | Output Minimal PCR (see below). Skip session digest to memory. |
+
+Minimal PCR format (use this instead of the full block):
+
+```
+☄️ PCR [Minimal] Phases→internal : PASS | Evidence: <one-line result>
+```
 
 ### Simple (compact PCR)
 
