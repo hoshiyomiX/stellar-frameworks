@@ -1,9 +1,17 @@
 #!/bin/bash
 # stellar-frameworks — Install, self-heal, and bootstrap (git-tracked) v5.3.0
 # First run: installs skill files. Subsequent runs: auto-updates + self-heals + starts dev server.
-# Usage: bash stellar-frameworks/boot.sh
+# Usage: bash stellar-frameworks/boot.sh [--install-only]
 
 set -euo pipefail
+
+# Parse flags
+INSTALL_ONLY=false
+for arg in "$@"; do
+  case "$arg" in
+    --install-only) INSTALL_ONLY=true ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$SCRIPT_DIR/skill/stellar-frameworks"
@@ -19,6 +27,8 @@ fi
 
 # Install skill to the project root's skills/ directory (where Skill system loads from)
 INSTALL_DIR="$PROJECT_ROOT/skills/stellar-frameworks"
+ZSCRIPTS="$PROJECT_ROOT/.zscripts"
+DEV_SCRIPT="$ZSCRIPTS/dev.sh"
 
 # ── 0. Auto-update: pull if remote has newer skill files ──────────
 # Non-fatal: any git failure just skips the update and proceeds.
@@ -120,7 +130,6 @@ fi
 SPLASH="$INSTALL_DIR/assets/page.tsx"
 # IMPL-002: TARGET must point to the Next.js project, not the repo dir
 TARGET="$PROJECT_ROOT/src/app/page.tsx"
-DEV_SCRIPT="$PROJECT_ROOT/.zscripts/dev.sh"
 
 if [ -f "$SPLASH" ]; then
   mkdir -p "$(dirname "$TARGET")"
@@ -128,31 +137,154 @@ if [ -f "$SPLASH" ]; then
   echo "[boot] Splash deployed → src/app/page.tsx"
 fi
 
-# ── 3. Dev server ────────────────────────────────────────────────
-if curl -s --connect-timeout 2 "http://localhost:3000" >/dev/null 2>&1; then
-  echo "[boot] Dev server running on :3000"
+# ── 3. Dev server (skip with --install-only) ─────────────────────
+if $INSTALL_ONLY; then
+  echo "[boot] Skipping dev server (--install-only)"
   exit 0
 fi
 
-if [ -f "$DEV_SCRIPT" ]; then
-  echo "[boot] Starting dev server..."
-  chmod +x "$DEV_SCRIPT"
-  DATABASE_URL="${DATABASE_URL:-file:${PROJECT_ROOT}/db/custom.db}"
-  (
-    cd "$PROJECT_ROOT"
-    nohup bash "$DEV_SCRIPT" >>"$PROJECT_ROOT/.zscripts/dev.log" 2>&1 </dev/null &
-    echo "$!" >"$PROJECT_ROOT/.zscripts/dev.pid"
-  )
-  for i in $(seq 1 30); do
-    if curl -s --connect-timeout 2 "http://localhost:3000" >/dev/null 2>&1; then
-      echo "[boot] Ready on :3000"
-      exit 0
-    fi
-    sleep 1
-  done
-  echo "[boot] WARNING: health check timed out"
-  exit 1
-else
-  echo "[boot] No .zscripts/dev.sh — run fullstack-dev init first"
-  exit 1
+if curl -s --connect-timeout 2 "http://localhost:3000" >/dev/null 2>&1; then
+  echo "[boot] Dev server already running on :3000"
+  exit 0
 fi
+
+# Auto-bootstrap: create dev.sh if missing
+if [ ! -f "$DEV_SCRIPT" ]; then
+  echo "[boot] No .zscripts/dev.sh — auto-bootstrapping Next.js project..."
+  mkdir -p "$ZSCRIPTS"
+
+  # Create dev.sh (uses bun, sandbox standard)
+  cat > "$DEV_SCRIPT" << 'DEVSH'
+#!/bin/bash
+cd /home/z/my-project
+exec bun run dev
+DEVSH
+  chmod +x "$DEV_SCRIPT"
+  echo "[boot] Created .zscripts/dev.sh"
+
+  # Initialize Next.js project if no package.json exists
+  if [ ! -f "$PROJECT_ROOT/package.json" ]; then
+    echo "[boot] Initializing Next.js project (this may take a moment)..."
+    cd "$PROJECT_ROOT"
+
+    # Create minimal package.json with Next.js + React + TypeScript
+    cat > package.json << 'PKGJSON'
+{
+  "name": "my-project",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  }
+}
+PKGJSON
+
+    # Install core dependencies
+    bun add next@latest react@latest react-dom@latest 2>&1 | tail -1
+    bun add -d typescript @types/react @types/node @types/react-dom tailwindcss @tailwindcss/postcss postcss 2>&1 | tail -1
+
+    # Create tsconfig.json
+    cat > tsconfig.json << 'TSCONFIG'
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+TSCONFIG
+
+    # Create next.config.ts
+    cat > next.config.ts << 'NEXTCFG'
+import type { NextConfig } from "next";
+const nextConfig: NextConfig = {};
+export default nextConfig;
+NEXTCFG
+
+    # Create postcss.config.mjs (Tailwind v4)
+    cat > postcss.config.mjs << 'POSTCSS'
+const config = {
+  plugins: ["@tailwindcss/postcss"],
+};
+export default config;
+POSTCSS
+
+    # Create src/app/layout.tsx
+    mkdir -p src/app
+    cat > src/app/layout.tsx << 'LAYOUT'
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "My Project",
+  description: "Created with stellar-frameworks",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+LAYOUT
+
+    # Create src/app/globals.css
+    cat > src/app/globals.css << 'CSS'
+@import "tailwindcss";
+CSS
+
+    # Create src/app/page.tsx only if not already deployed by splash
+    if [ ! -f "$PROJECT_ROOT/src/app/page.tsx" ]; then
+      cat > src/app/page.tsx << 'PAGE'
+export default function Home() {
+  return (
+    <main className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold mb-4">Ready to build</h1>
+        <p className="text-gray-500">Edit <code>src/app/page.tsx</code> to get started.</p>
+      </div>
+    </main>
+  );
+}
+PAGE
+    fi
+
+    echo "[boot] Next.js project initialized"
+  fi
+fi
+
+# Start dev server
+echo "[boot] Starting dev server..."
+DATABASE_URL="${DATABASE_URL:-file:${PROJECT_ROOT}/db/custom.db}"
+(
+  cd "$PROJECT_ROOT"
+  nohup bash "$DEV_SCRIPT" >>"$ZSCRIPTS/dev.log" 2>&1 </dev/null &
+  echo "$!" >"$ZSCRIPTS/dev.pid"
+)
+for i in $(seq 1 30); do
+  if curl -s --connect-timeout 2 "http://localhost:3000" >/dev/null 2>&1; then
+    echo "[boot] Ready on :3000"
+    exit 0
+  fi
+  sleep 1
+done
+echo "[boot] WARNING: health check timed out — check $ZSCRIPTS/dev.log for errors"
+exit 1

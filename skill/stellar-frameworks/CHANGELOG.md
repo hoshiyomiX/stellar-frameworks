@@ -11,10 +11,12 @@
 - **AI/SDK Error Diagnostic Path** — new category in error-resolution.md covering SDK invocation failures, rate limiting, timeout, image generation errors, and web search failures.
 - **Phase-Transition Memory Reminders** — memory-template.md now defines a one-line memory check at each phase transition, not just IDLE. Ensures memory stays active throughout the entire phase machine.
 - **Completion Signal** — DELIVER phase now explicitly references the platform's `Complete` tool for web development tasks.
+- **boot.sh auto-bootstrap** — when `.zscripts/dev.sh` is missing, boot.sh automatically creates it and initializes a minimal Next.js project (package.json, tsconfig, Tailwind v4, layout, page). No separate `fullstack-dev init` step needed. `--install-only` flag skips dev server entirely.
 
 ### Changed
 
 - **boot.sh version check** — replaced weak `grep "Phase State Machine"` with semantic version comparison. Fixes the critical bug where v5.2.0 features were not installed because the check passed for both v5.0.0 and v5.2.0.
+- **boot.sh dev server is now optional** — missing `.zscripts/dev.sh` no longer causes `exit 1`. boot.sh auto-creates it and bootstraps a Next.js project if needed. Dev server failure is the only condition that returns exit 1.
 - **boot.sh knowledge file paths** — updated to match new `knowledge/universal/` and `knowledge/platform/` directory structure.
 - **Knowledge directory restructured** — split into `knowledge/universal/` (architecture, conventions, error-patterns) and `knowledge/platform/zai-sandbox.md`. Universal files are portable across platforms; platform file contains z.ai-specific constraints. All internal references updated.
 - **Skill description shortened** — removed verbose trigger phrases from frontmatter (was ~600 chars, now ~120 chars). Improves skill triggering accuracy on the platform.

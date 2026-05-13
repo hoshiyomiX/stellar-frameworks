@@ -27,6 +27,8 @@ git clone https://github.com/hoshiyomiX/stellar-frameworks.git
 
 # 2. Bootstrap (install + auto-update + dev server — one command)
 bash stellar-frameworks/boot.sh
+
+#    └─ or skip dev server: bash stellar-frameworks/boot.sh --install-only
 ```
 
 Invoke in any session:
@@ -37,7 +39,7 @@ Skill(command="stellar-frameworks")
 
 Look for `☄️ STELLAR · v5.3.0 · ACTIVE` — confirms the framework loaded.
 
-That's it. `boot.sh` handles everything: first-time install, auto-updates from remote, self-healing if files get wiped, and dev server startup. Run it once per session.
+That's it. `boot.sh` handles everything: first-time install, auto-updates from remote, self-healing if files get wiped, Next.js project initialization (if needed), and dev server startup. Run it once per session.
 
 ---
 
@@ -171,7 +173,7 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
-| [**v5.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Task type awareness, knowledge restructure (universal/platform), skill chain orchestration, memory hardening, compact verification, PCR tier, TodoWrite integration, AI/SDK error path, completion signal. |
+| [**v5.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Task type awareness, knowledge restructure (universal/platform), skill chain orchestration, memory hardening, compact verification, PCR tier, TodoWrite integration, AI/SDK error path, completion signal, boot.sh auto-bootstrap. |
 | [**v5.2.0**](skill/stellar-frameworks/CHANGELOG.md) | Agent memory system (Hermes+Memweave inspired), complexity tiers, compact PCR, path safety, triggering improvements. |
 | [**v5.1.0**](skill/stellar-frameworks/CHANGELOG.md) | Completion signal moved to high-attention zone, abbreviation floor added. |
 | [v5.0.0](skill/stellar-frameworks/CHANGELOG.md) | Philosophical reset. Removed compliance theater, kept useful tools. Added `boot.sh` self-heal. |
