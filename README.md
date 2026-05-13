@@ -21,25 +21,10 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 ## Quick Start
 
 ```bash
-# 1. Clone into your project
-cd ~/my-project
-git clone https://github.com/hoshiyomiX/stellar-frameworks.git
-
-# 2. Bootstrap (install + auto-update + dev server — one command)
-bash stellar-frameworks/boot.sh
-
-#    └─ or skip dev server: bash stellar-frameworks/boot.sh --install-only
+cd ~/my-project && git clone https://github.com/hoshiyomiX/stellar-frameworks.git && bash stellar-frameworks/boot.sh
 ```
 
-Invoke in any session:
-
-```
-Skill(command="stellar-frameworks")
-```
-
-Look for `☄️ STELLAR · v5.4.0 · ACTIVE` — confirms the framework loaded.
-
-That's it. `boot.sh` handles everything: first-time install, auto-updates from remote, self-healing if files get wiped, Next.js project initialization (if needed), and dev server startup. Run it once per session.
+Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.4.0 · ACTIVE`. That's it.
 
 ---
 
