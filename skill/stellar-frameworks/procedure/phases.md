@@ -20,18 +20,31 @@ On error: stop work, document the error, fix the root cause, return to VERIFY. I
 
 **Actions**:
 1. Receive and acknowledge the request.
-2. Classify complexity:
+2. **Session continuity check** — determine if this is a NEW task or a CONTINUATION of previous work:
+
+   | Continuation signal | Action |
+   |---------------------|--------|
+   | User references previous output ("apply all 10", "fix point 3", "proceed") | Skip SPECIFY+PLAN, go to IMPLEMENT |
+   | User approves a proposal/plan ("yes", "go ahead", "do it") | Skip SPECIFY+PLAN, go to IMPLEMENT |
+   | User asks a follow-up question ("what about X?") | Skip SPECIFY, answer in current context |
+   | User provides new requirements mid-task | Restart from SPECIFY |
+   | Context compression boundary with ongoing task | Check memory, resume from last active phase |
+   | Completely new topic or explicit new instructions | Full phase machine (continue below) |
+
+   **Critical**: If continuation is detected, DO NOT re-derive proposals, plans, or specifications the user has already seen. Use the previous output as the plan. Regenerating from scratch is a correctness bug.
+
+3. Classify complexity:
    - **Simple**: Single file, no schema change, no new dependencies.
    - **Standard**: Multiple files or a schema change.
    - **Complex**: Architectural changes, multi-service, or high risk.
-3. Classify task type (see [Task Type Awareness](#task-type-adaptation) below):
+4. Classify task type (see [Task Type Awareness](#task-type-adaptation) below):
    - **Coding**: Web dev, bug fix, refactor, new feature.
    - **Document**: Report, proposal, DOCX, PDF, XLSX, PPT.
    - **Visualization**: Charts, diagrams, mind maps, dashboards.
    - **Data Processing**: ETL, analysis, transform, Python scripts.
-4. Check `memory/MEMORY.md` for user preferences, patterns, and key decisions. If the `memory/` directory does not exist, it will be created on first DELIVER — skip this step. For tasks requiring session continuity, also check the most recent dated file in `memory/`.
-5. If the task involves a git repository and the session was continued from a previous conversation (context compression boundary), flag the repository as "state-uncertain" and require Source State Verification in SPECIFY.
-6. Transition to SPECIFY.
+5. Check `memory/MEMORY.md` for user preferences, patterns, and key decisions. If the `memory/` directory does not exist, it will be created on first DELIVER — skip this step. For tasks requiring session continuity, also check the most recent dated file in `memory/`.
+6. If the task involves a git repository and the session was continued from a previous conversation (context compression boundary), flag the repository as "state-uncertain" and require Source State Verification in SPECIFY.
+7. Transition to SPECIFY (or IMPLEMENT/VERIFY if continuation detected).
 
 **Artifacts**: None. IDLE is a routing phase.
 

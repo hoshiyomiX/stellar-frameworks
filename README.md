@@ -173,7 +173,7 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
-| [**v5.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Task type awareness, knowledge restructure (universal/platform), skill chain orchestration, memory hardening, compact verification, PCR tier, TodoWrite integration, AI/SDK error path, completion signal, boot.sh auto-bootstrap. |
+| [**v5.3.0**](skill/stellar-frameworks/CHANGELOG.md) | Task type awareness, knowledge restructure (universal/platform), skill chain orchestration, memory hardening, compact verification, PCR tier, TodoWrite integration, AI/SDK error path, completion signal, boot.sh auto-bootstrap, session continuity. |
 | [**v5.2.0**](skill/stellar-frameworks/CHANGELOG.md) | Agent memory system (Hermes+Memweave inspired), complexity tiers, compact PCR, path safety, triggering improvements. |
 | [**v5.1.0**](skill/stellar-frameworks/CHANGELOG.md) | Completion signal moved to high-attention zone, abbreviation floor added. |
 | [v5.0.0](skill/stellar-frameworks/CHANGELOG.md) | Philosophical reset. Removed compliance theater, kept useful tools. Added `boot.sh` self-heal. |

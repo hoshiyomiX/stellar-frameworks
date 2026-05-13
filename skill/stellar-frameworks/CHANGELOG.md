@@ -12,6 +12,7 @@
 - **Phase-Transition Memory Reminders** — memory-template.md now defines a one-line memory check at each phase transition, not just IDLE. Ensures memory stays active throughout the entire phase machine.
 - **Completion Signal** — DELIVER phase now explicitly references the platform's `Complete` tool for web development tasks.
 - **boot.sh auto-bootstrap** — when `.zscripts/dev.sh` is missing, boot.sh automatically creates it and initializes a minimal Next.js project (package.json, tsconfig, Tailwind v4, layout, page). No separate `fullstack-dev init` step needed. `--install-only` flag skips dev server entirely.
+- **Session Continuity** — new section in SKILL.md and continuation check in IDLE phase (phases.md). Prevents the LLM from regenerating proposals, plans, or specifications the user has already seen. Continuation signals (user approves plan, references previous output, follow-up question) cause SPECIFY and/or PLAN to be skipped. PCR block gains `Continuation` field (NEW/YES) and SKIP status for bypassed phases.
 
 ### Changed
 
@@ -20,7 +21,7 @@
 - **boot.sh knowledge file paths** — updated to match new `knowledge/universal/` and `knowledge/platform/` directory structure.
 - **Knowledge directory restructured** — split into `knowledge/universal/` (architecture, conventions, error-patterns) and `knowledge/platform/zai-sandbox.md`. Universal files are portable across platforms; platform file contains z.ai-specific constraints. All internal references updated.
 - **Skill description shortened** — removed verbose trigger phrases from frontmatter (was ~600 chars, now ~120 chars). Improves skill triggering accuracy on the platform.
-- **PCR block enhanced** — added `Tier` field (Simple/Standard/Complex) for better task tracking.
+- **PCR block enhanced** — added `Tier` field (Simple/Standard/Complex) and `Continuation` field (NEW/YES) with SKIP status for bypassed phases.
 - **Memory budget increased** — MEMORY.md soft budget raised from ~2,000 to ~3,000 characters to accommodate meaningful preference entries.
 - **Error resolution references updated** — all knowledge file references now point to `knowledge/universal/` and `knowledge/platform/zai-sandbox.md`.
 

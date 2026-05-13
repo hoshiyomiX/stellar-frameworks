@@ -39,6 +39,31 @@ On error: stop, diagnose, fix, return to VERIFY.
 
 Phase definitions, entry/exit criteria, and transition rules are in `procedure/phases.md`.
 
+## Session Continuity
+
+The most common failure mode in multi-turn sessions: the LLM re-derives a proposal or plan from scratch instead of continuing from the previous output. This wastes context, introduces inconsistencies, and frustrates users.
+
+**Rule**: Before entering any phase, check if the user's message is a continuation of previous work.
+
+| Signal | Type | Action |
+|--------|------|--------|
+| User references previous output ("apply all 10", "fix point 3", "proceed") | Continuation | Skip SPECIFY+PLAN → go directly to IMPLEMENT |
+| User approves a proposal/plan ("yes", "go ahead", "do it") | Continuation | Skip SPECIFY+PLAN → go directly to IMPLEMENT |
+| User asks a follow-up question ("what about X?") | Continuation | Skip SPECIFY → answer within current phase context |
+| User provides new requirements mid-task | New task | Restart from SPECIFY with updated requirements |
+| User invokes Skill() with new instructions | New task | Full phase machine from IDLE |
+| Context compression boundary with ongoing task | Continuation | Check memory for last task state, resume from last active phase |
+
+**Continuation shortcuts**:
+
+```
+Continuation + user approves plan  → skip SPECIFY + PLAN → IMPLEMENT
+Continuation + user asks follow-up → skip SPECIFY → answer in current phase
+Continuation + user reports error  → skip SPECIFY + PLAN → Error Recovery → VERIFY
+```
+
+This is not optional — regenerating proposals the user already approved is a correctness bug, not a style preference.
+
 ## Task Type Awareness
 
 This framework is not limited to coding tasks. The phase machine adapts to the task type:
@@ -95,12 +120,13 @@ After completing a task, output this block. Phases not applicable to the task ar
 
 ```
 ☄️ PCR
-├─ Tier       : Simple / Standard / Complex
-├─ SPECIFY     : PASS / N/A
-├─ PLAN        : PASS / N/A
-├─ IMPLEMENT   : PASS / N/A
-├─ VERIFY      : PASS / N/A
-└─ OUTCOME     : PASS / FAIL
+├─ Tier         : Simple / Standard / Complex
+├─ Continuation : NEW / YES (skipped SPECIFY and/or PLAN)
+├─ SPECIFY      : PASS / N/A / SKIP
+├─ PLAN         : PASS / N/A / SKIP
+├─ IMPLEMENT    : PASS / N/A
+├─ VERIFY       : PASS / N/A
+└─ OUTCOME      : PASS / FAIL
 
 Evidence: [concrete results — e.g. "lint 0 errors, 4/4 traceability verified"]
 Defects found and fixed: [n]
