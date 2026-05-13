@@ -20,12 +20,11 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 
 ## Quick Start
 
-One command — works from any sandbox, fresh or existing:
 ```bash
-bash ~/my-project/stellar-frameworks/boot.sh
+cd ~/my-project && git clone https://github.com/hoshiyomiX/stellar-frameworks.git 2>/dev/null; bash stellar-frameworks/boot.sh
 ```
 
-If the repo isn't cloned yet, it auto-clones. If `skills/` was wiped, it auto-heals. Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.4.0 · ACTIVE`.
+Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.4.0 · ACTIVE`.
 
 ---
 
