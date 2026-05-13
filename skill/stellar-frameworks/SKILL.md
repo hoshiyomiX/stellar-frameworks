@@ -1,18 +1,18 @@
 ---
 name: stellar-frameworks
-version: 5.3.1
-description: "Core coding workflow — runs ALL code tasks through a phase machine: SPECIFY (problem) → PLAN (solution) → IMPLEMENT (code) → VERIFY (tests) → DELIVER (report). Covers building features, fixing bugs, refactoring, writing scripts/functions, debugging errors, generating code files (Dockerfiles, configs, tests, utilities), and resolving code issues. The phase machine always runs — it adapts verbosity to complexity but never skips. Use for any task involving writing, modifying, fixing, debugging, or generating code, regardless of size."
+version: 5.3.2
+description: "Core workflow that structures ALL tasks through a phase machine (SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER). For coding tasks — full phases with Traceability IDs and verification. For non-coding tasks (questions, explanations, recommendations) — SPECIFY and PLAN are SKIPPED, but the framework still activates, IMPLEMENT does the work, and DELIVER outputs a Process Compliance Report. Use for every task: coding, debugging, scripts, answering questions, explaining concepts, providing recommendations, or generating code. The phase machine always activates — task type determines which phases run, not whether the framework participates."
 ---
 <!-- VERSION SYNC: on bump, update (1) frontmatter above, (2) activation banner below, (3) boot.sh header, (4) setup.sh header -->
 
 ## Activation
 
 ```
-☄️ STELLAR · v5.3.1 · ACTIVE
-   Phase State Machine · Traceability IDs · Artifact Templates · SSV · Memory · Continuity
+☄️ STELLAR · v5.3.2 · ACTIVE
+   Phase State Machine · Traceability IDs · Artifact Templates · SSV · Memory · Continuity · Universal
 ```
 
-This framework structures coding work as a phase machine. It provides templates and traceability tools — use them when they help, abbreviate when they don't. The phases exist because skipping straight to code is how most bugs happen, not because every task needs a formal spec.
+This framework structures ALL work as a phase machine. It activates for every task — coding or not. For coding tasks, full phases prevent bugs. For non-coding tasks, the framework provides traceability (a PCR record) even when most phases are SKIPPED. The phases exist because structured thinking produces better outcomes, not because every task needs a formal spec.
 
 ## Limitations
 
@@ -74,8 +74,9 @@ This framework is not limited to coding tasks. The phase machine adapts to the t
 | **Document** (report, proposal, DOCX, PDF) | Content outline | Section plan + structure | Generate document | Format check, completeness |
 | **Visualization** (charts, diagrams, dashboards) | Visual requirements | Data mapping + layout | Generate chart | Visual accuracy, data integrity |
 | **Data Processing** (ETL, analysis, transform) | Data spec | Transform pipeline | Write script | Output validation, edge cases |
+| **Non-Coding** (question, explain, recommend) | SKIP | SKIP | Answer / explain / recommend | SKIP |
 
-For non-coding tasks: Traceability IDs still apply. Templates adapt — use the same structure but replace code-specific fields with task-appropriate ones.
+For non-coding tasks: No Traceability IDs, no templates. The framework activates, skips SPECIFY and PLAN (the user's question IS the spec), IMPLEMENT does the actual work, VERIFY is skipped (nothing to automate), and DELIVER outputs a compact PCR recording that the task was processed. This gives every interaction a traceable record, not just coding tasks.
 
 ## Phase References
 
@@ -116,7 +117,9 @@ Full decision tree: `procedure/decision-trees/error-resolution.md`.
 
 ## Process Compliance Report
 
-After completing a task, output this block. Phases not applicable to the task are marked N/A.
+After completing a task, output a PCR block. The format depends on task type.
+
+### Coding PCR (Simple / Standard / Complex)
 
 ```
 ☄️ PCR
@@ -132,7 +135,16 @@ Evidence: [concrete results — e.g. "lint 0 errors, 4/4 traceability verified"]
 Defects found and fixed: [n]
 ```
 
-Self-graded. The evidence requirement and defect counter make fabrication harder but cannot guarantee independence. A claim of 0 defects means first-attempt correctness. If OUTCOME is FAIL, do not deliver — return to the appropriate phase.
+### Non-Coding PCR (questions, explanations, recommendations)
+
+```
+☄️ PCR [Non-Coding]
+SPECIFY→SKIP PLAN→SKIP IMPLEMENT→PASS VERIFY→SKIP | Evidence: <one-line result>
+```
+
+Single-line format. SPECIFY, PLAN, and VERIFY are always SKIP for non-coding tasks. IMPLEMENT and OUTCOME are the only meaningful fields.
+
+Self-graded. The evidence requirement makes fabrication harder but cannot guarantee independence.
 
 ## Completion Signal
 

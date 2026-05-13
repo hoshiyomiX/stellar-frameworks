@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.3.2] — 2026-05-13
+
+### Added
+
+- **Non-Coding task type** — new row in Task Type Awareness: questions, explanations, and recommendations now trigger the framework with SPECIFY, PLAN, and VERIFY all SKIPPED. IMPLEMENT does the actual work (answering, explaining). DELIVER outputs a compact `[Non-Coding]` PCR. This gives every interaction a traceable record, not just coding tasks.
+- **Non-Coding PCR format** — single-line compact format: `☄️ PCR [Non-Coding] SPECIFY→SKIP PLAN→SKIP IMPLEMENT→PASS VERIFY→SKIP | Evidence: <one-line result>`.
+
+### Changed
+
+- **Skill description: universal activation** — framework now triggers for ALL tasks, not just coding. Description rewritten to cover coding tasks (full phases) and non-coding tasks (SKIP phases with PCR traceability). "Core workflow that structures ALL tasks through a phase machine" replaces "Core coding workflow."
+- **Activation banner** — added "Universal" to feature list.
+
 ## [5.3.1] — 2026-05-13
 
 ### Changed

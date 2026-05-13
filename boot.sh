@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-frameworks — Install, self-heal, and bootstrap (git-tracked) v5.3.1
+# stellar-frameworks — Install, self-heal, and bootstrap (git-tracked) v5.3.2
 # First run: installs skill files. Subsequent runs: auto-updates + self-heals + starts dev server.
 # Usage: bash stellar-frameworks/boot.sh [--install-only]
 
