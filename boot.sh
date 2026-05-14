@@ -49,6 +49,7 @@ fi
 
 # Install skill to the project root's skills/ directory (where Skill system loads from)
 INSTALL_DIR="$PROJECT_ROOT/skills/stellar-frameworks"
+OBSOLETE_DIR="$PROJECT_ROOT/skills/stellar-coding-agent"
 ZSCRIPTS="$PROJECT_ROOT/.zscripts"
 DEV_SCRIPT="$ZSCRIPTS/dev.sh"
 
@@ -102,6 +103,12 @@ else
     NEED_INSTALL=true
     echo "[boot] Version mismatch: installed $INSTALLED_VER → source $SOURCE_VER"
   fi
+fi
+
+# ── 1b. Clean up predecessor skill (stellar-coding-agent v5.0.0) ──
+if [ -d "$OBSOLETE_DIR" ]; then
+  rm -rf "${OBSOLETE_DIR:?}"
+  echo "[boot] Removed predecessor skill: stellar-coding-agent"
 fi
 
 if $NEED_INSTALL; then

@@ -138,13 +138,22 @@ Full decision tree: `procedure/decision-trees/error-resolution.md`.
 
 After completing a task, output a PCR block. The format depends on task type.
 
-### Full PCR (Simple / Standard / Complex)
+### Compact PCR (Simple)
 
-Used by Coding, Document, Visualization, and Data Processing tasks based on their complexity tier.
+Used by Simple-tier tasks (single file, no schema change, no new dependencies). Replaces the full block with a one-liner.
+
+```
+☄️ PCR [Simple]
+SPECIFY→DELIVER : PASS | Evidence: <one-line result> | Defects: 0
+```
+
+### Full PCR (Standard / Complex)
+
+Used by Standard and Complex-tier tasks (multiple files, schema changes, or architectural impact).
 
 ```
 ☄️ PCR
-├─ Tier         : Simple / Standard / Complex
+├─ Tier         : Standard / Complex
 ├─ Continuation : NEW / YES (skipped SPECIFY and/or PLAN)
 ├─ SPECIFY      : PASS / N/A / SKIP (continuation only)
 ├─ PLAN         : PASS / N/A / SKIP (continuation only)

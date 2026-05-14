@@ -47,6 +47,13 @@ if [ -d "${INSTALL_DIR}" ]; then
     ok "Previous installation removed"
 fi
 
+# --- Remove predecessor skill (stellar-coding-agent v5.0.0) ---
+OBSOLETE_DIR="${PROJECT_ROOT}/skills/stellar-coding-agent"
+if [ -d "${OBSOLETE_DIR}" ]; then
+    rm -rf "${OBSOLETE_DIR}"
+    ok "Removed predecessor skill: stellar-coding-agent"
+fi
+
 # --- Fresh install ---
 cp -R "${SOURCE_DIR}" "${INSTALL_DIR}"
 ok "Files deployed to ${INSTALL_DIR}"
