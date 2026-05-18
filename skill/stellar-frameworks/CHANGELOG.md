@@ -1,5 +1,33 @@
 # Changelog
 
+## [5.7.0] — 2026-05-18
+
+### Added
+
+- **Post-Activation Protocol** — new section in SKILL.md placed immediately after Activation banner (high-attention zone). Defines a 4-step execution sequence: (1) Load Phase Intelligence — read `procedure/phases.md` before any task output, (2) Classify — determine complexity tier, task type, and continuation status, (3) Confirm Activation — output a structured status block showing classification results, (4) Enter the Phase Machine — begin SPECIFY or IMPLEMENT if continuation detected.
+
+### Changed
+
+- **Phase References table gains "When to Read" column** — each phase now has explicit guidance on when to load its artifact template and knowledge files (e.g., "Start of SPECIFY", "On error detection"). This prevents the common failure mode where agents acknowledge template existence but never actually read them.
+
+- **Phase State Machine reference strengthened** — passive reference ("definitions are in phases.md") replaced with active cross-reference ("the same file the Post-Activation Protocol asks you to read first"). Reinforces the loading chain.
+
+- **Activation section gains transition directive** — one-line bridge between the activation banner and the protocol section: "Follow it before producing any task output — it takes only a few seconds and ensures the phase machine runs correctly."
+
+### Why
+
+The most persistent compliance failure observed in practice: agents load the skill, acknowledge the activation banner, and then proceed with generic task handling — skipping phases, ignoring templates, producing delivery reports as decoration rather than evidence. The root cause is structural: SKILL.md had no execution sequence. The framework described WHAT it does but not WHAT THE AGENT SHOULD DO AFTER LOADING IT. The Post-Activation Protocol fills this gap by placing imperative instructions in the highest-attention zone (lines 17-49), using theory-of-mind explanations for WHY each step matters rather than heavy-handed compliance language. This follows the skill-creator principle: "explain why things are important in lieu of heavy-handed musty MUSTs."
+
+Design choices aligned with skill-creator audit criteria:
+- **Progressive Disclosure**: Protocol is in SKILL.md (level 2), phase details stay in bundled resources (level 3)
+- **Imperative, not MUST-heavy**: Each step explains WHY, not just WHAT — "Without it, the phase machine is a diagram — phases.md is what makes it executable"
+- **Lean**: Protocol adds ~35 lines; total SKILL.md stays at 269 lines (well under 500-line budget)
+- **Theory of mind**: Opening paragraph explains the failure mode the protocol addresses — agents treating the banner as decoration
+
+### Files Modified
+
+SKILL.md, README.md, boot.sh, setup.sh.
+
 ## [5.6.0] — 2026-05-18
 
 ### Changed

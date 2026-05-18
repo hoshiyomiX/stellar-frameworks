@@ -4,7 +4,7 @@
 
 **Universal task workflow for LLM agents**
 
-[![Version](https://img.shields.io/badge/version-5.6.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-5.7.0-blue.svg)](skill/stellar-frameworks/CHANGELOG.md)
 
 Structures ALL tasks — coding and non-coding — as a **phase state machine** with traceability IDs, artifact templates, source state verification, and file-based agent memory. For coding tasks, full phases with verification. For non-coding tasks, phases run internally (Minimal tier) but the framework still activates for traceability. Designed for the [z.ai](https://z.ai) platform.
 
@@ -24,7 +24,7 @@ IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
 cd ~/my-project && git clone https://github.com/hoshiyomiX/stellar-frameworks.git 2>/dev/null; bash stellar-frameworks/boot.sh
 ```
 
-Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.6.0 · ACTIVE`.
+Invoke: `Skill(command="stellar-frameworks")` — look for `☄️ STELLAR · v5.7.0 · ACTIVE`.
 
 ---
 
@@ -185,6 +185,7 @@ stellar-frameworks/
 
 | Version | Summary |
 |---------|---------|
+| [**v5.7.0**](skill/stellar-frameworks/CHANGELOG.md) | Post-Activation Protocol: 4-step execution sequence ensuring framework is followed, not just loaded. Phase References gains "When to Read" column. |
 | [**v5.6.0**](skill/stellar-frameworks/CHANGELOG.md) | Terminology overhaul: PCR → Delivery Reports (Scope Commitment, Delivery Report). PIVOT → Pivot, DELTA Scope → Scope Drift. Zero acronyms. |
 | [**v5.5.1**](skill/stellar-frameworks/CHANGELOG.md) | Audit fix: version sync, incident-report Pivot Assessment, SKILL.md description rewrite, dedup. |
 | [**v5.5.0**](skill/stellar-frameworks/CHANGELOG.md) | PCR v2: Scope PCR, Phase Gates, Adaptive Pivot, Fallback Approach, DELTA tracking. Professional implementation quality. |

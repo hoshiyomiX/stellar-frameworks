@@ -1,6 +1,6 @@
 ---
 name: stellar-frameworks
-version: 5.6.0
+version: 5.7.0
 description: "Activates on every task: coding (features, bugs, refactoring, scripts), documents, charts, data processing, or complex planning. Work runs through a phase machine with traceability IDs. Complexity adapts automatically."
 ---
 <!-- VERSION SYNC: on bump, update (1) frontmatter above, (2) activation banner below, (3) boot.sh header, (4) setup.sh header, (5) README.md badge + invoke line + version history, (6) CHANGELOG.md -->
@@ -8,11 +8,45 @@ description: "Activates on every task: coding (features, bugs, refactoring, scri
 ## Activation
 
 ```
-☄️ STELLAR · v5.6.0 · ACTIVE
+☄️ STELLAR · v5.7.0 · ACTIVE
    Phase State Machine · Traceability IDs · Phase Gates · Scope Commitment · Adaptive Pivot · SSV · SADC · Memory · Continuity · Universal
 ```
 
 This framework structures ALL work as a phase machine. It activates for every task — coding or not — without exception. What changes between tasks is the complexity tier, not whether the framework participates. Coding tasks get full phases with Traceability IDs and formal verification. Non-coding tasks (questions, explanations, recommendations) get Minimal tier — all phases still run, but SPECIFY, PLAN, and VERIFY happen internally (the agent thinks through them without outputting formal artifacts). Only IMPLEMENT produces visible work. Every task, regardless of type, gets a delivery report recording that the framework was followed.
+
+The Post-Activation Protocol below describes the steps to take after this framework loads. Follow it before producing any task output — it takes only a few seconds and ensures the phase machine runs correctly.
+
+## Post-Activation Protocol
+
+These steps bridge the gap between "the framework is loaded" and "the framework is running." Without them, agents tend to acknowledge the activation banner as decoration and proceed with generic task handling — skipping phases, ignoring templates, producing delivery reports as afterthoughts rather than evidence. The protocol exists because loading instructions is different from following them.
+
+### 1. Load Phase Intelligence
+
+Read `procedure/phases.md`. This file contains the phase definitions, gate criteria, complexity tier rules, and task-type adaptation details that the rest of this document references throughout. Without it, the phase machine is a diagram — phases.md is what makes it executable.
+
+For the current task, also load the relevant files from the Phase References table: the artifact template for the active phase, and the knowledge files that match the task type. Templates define the output format; knowledge files contain platform constraints that prevent common errors.
+
+### 2. Classify
+
+Before producing any task output, determine:
+
+- **Complexity tier**: Minimal, Simple, Standard, or Complex — this decides the ceremony level for each phase
+- **Task type**: Coding, Document, Visualization, Data Processing, or Non-Coding — this decides what each phase produces
+- **Continuity**: Check the immediately preceding assistant message — if the user's reply references, approves, corrects, or follows up on that output, this is a continuation (see Session Continuity below)
+
+### 3. Confirm Activation
+
+Output this block to signal that the framework is engaged:
+
+```
+☄️ STELLAR · v5.7.0 · ACTIVE
+   Phase: IDLE → SPECIFY
+   Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]
+```
+
+### 4. Enter the Phase Machine
+
+Begin SPECIFY (or IMPLEMENT if continuation is detected and the user approved a prior plan). All phases always run — what changes between tiers is the formality, not whether phases execute. See `procedure/phases.md` for what each phase requires.
 
 ## Limitations
 
@@ -37,7 +71,7 @@ On error: assess (code bug or approach failure?), fix or pivot, return to VERIFY
 | VERIFY | Run checks, trace edge cases, confirm Traceability IDs satisfied |
 | DELIVER | Present results with attestation |
 
-Phase definitions, entry/exit criteria, and transition rules are in `procedure/phases.md`.
+Phase definitions, entry/exit criteria, and transition rules are in `procedure/phases.md` — the same file the Post-Activation Protocol asks you to read first.
 
 ## Session Continuity
 
@@ -80,13 +114,13 @@ No phases are ever skipped. Non-coding tasks use **Minimal** complexity tier —
 
 ## Phase References
 
-| Phase | Artifact Template | Knowledge Files |
-|-------|-------------------|-----------------|
-| SPECIFY | `procedure/templates/problem-spec.md` | `knowledge/universal/architecture.md`, `knowledge/platform/zai-sandbox.md` |
-| PLAN | `procedure/templates/implementation-plan.md` | `knowledge/universal/conventions.md` |
-| IMPLEMENT | (code/document/chart output) | `constraints/code-standards.md`, `constraints/type-safety.md` |
-| VERIFY | `procedure/templates/verification-report.md` | `knowledge/universal/error-patterns.md` |
-| Error Recovery | `procedure/templates/incident-report.md` | `procedure/decision-trees/error-resolution.md` |
+| Phase | Artifact Template | Knowledge Files | When to Read |
+|-------|-------------------|-----------------|--------------|
+| SPECIFY | `procedure/templates/problem-spec.md` | `knowledge/universal/architecture.md`, `knowledge/platform/zai-sandbox.md` | Start of SPECIFY |
+| PLAN | `procedure/templates/implementation-plan.md` | `knowledge/universal/conventions.md` | Start of PLAN |
+| IMPLEMENT | (code/document/chart output) | `constraints/code-standards.md`, `constraints/type-safety.md` | Start of IMPLEMENT (coding tasks) |
+| VERIFY | `procedure/templates/verification-report.md` | `knowledge/universal/error-patterns.md` | Start of VERIFY |
+| Error Recovery | `procedure/templates/incident-report.md` | `procedure/decision-trees/error-resolution.md` | On error detection |
 
 ## Source State Verification (SSV)
 
