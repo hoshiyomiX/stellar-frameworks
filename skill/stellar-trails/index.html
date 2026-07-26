@@ -15,104 +15,85 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   }
 
-  /* Milky way — animated star layers */
-  .mw{position:fixed;inset:0;z-index:0;overflow:hidden}
-  .mw::before,.mw::after{
-    content:'';position:absolute;inset:-50%;
+  /* Static star field — box-shadow trick (single paint, no animation) */
+  .stars{
+    position:fixed;top:0;left:0;width:1px;height:1px;z-index:0;
+    box-shadow:
+      50px 80px #fff, 150px 200px rgba(255,255,255,.6), 300px 100px #fff,
+      450px 300px rgba(255,255,255,.4), 600px 150px rgba(167,139,250,.6),
+      700px 50px #fff, 200px 400px rgba(34,211,238,.4), 850px 250px #fff,
+      100px 500px rgba(255,255,255,.5), 350px 550px #fff, 550px 450px rgba(251,113,133,.3),
+      750px 500px rgba(255,255,255,.6), 900px 400px #fff, 250px 600px rgba(167,139,250,.4),
+      500px 650px rgba(255,255,255,.5), 650px 600px #fff, 800px 550px rgba(34,211,238,.3),
+      120px 350px #fff, 420px 120px rgba(255,255,255,.4), 680px 380px #fff,
+      50px 700px rgba(255,255,255,.3), 950px 600px #fff, 380px 680px rgba(167,139,250,.5),
+      580px 720px rgba(255,255,255,.4), 880px 100px #fff, 150px 750px rgba(34,211,238,.3);
   }
-  .mw::before{
-    background:
-      radial-gradient(2px 2px at 20% 30%,#fff,transparent),
-      radial-gradient(1px 1px at 40% 70%,rgba(255,255,255,.8),transparent),
-      radial-gradient(1px 1px at 60% 20%,#fff,transparent),
-      radial-gradient(2px 2px at 80% 50%,rgba(255,255,255,.6),transparent),
-      radial-gradient(1px 1px at 10% 80%,#fff,transparent),
-      radial-gradient(1px 1px at 90% 10%,rgba(255,255,255,.5),transparent),
-      radial-gradient(2px 2px at 50% 90%,#fff,transparent),
-      radial-gradient(1px 1px at 30% 50%,rgba(255,255,255,.7),transparent),
-      radial-gradient(1px 1px at 70% 80%,rgba(255,255,255,.4),transparent);
-    background-size:300px 300px;
-    animation:drift1 60s linear infinite;
-  }
-  .mw::after{
-    background:
-      radial-gradient(1px 1px at 15% 40%,rgba(167,139,250,.8),transparent),
-      radial-gradient(2px 2px at 55% 60%,rgba(34,211,238,.5),transparent),
-      radial-gradient(1px 1px at 75% 30%,rgba(251,113,133,.6),transparent),
-      radial-gradient(1px 1px at 25% 90%,rgba(167,139,250,.4),transparent),
-      radial-gradient(2px 2px at 85% 75%,rgba(34,211,238,.3),transparent);
-    background-size:400px 400px;
-    animation:drift2 90s linear infinite;
-  }
-  /* Nebula glow */
+
+  /* Nebula glow — static, no animation */
   .nebula{
     position:fixed;inset:0;z-index:0;pointer-events:none;
     background:
       radial-gradient(ellipse 600px 400px at 50% 40%,rgba(139,92,246,.08),transparent 70%),
       radial-gradient(ellipse 400px 300px at 30% 70%,rgba(236,72,153,.05),transparent 70%);
   }
-  @keyframes drift1{to{transform:translate(300px,300px)}}
-  @keyframes drift2{to{transform:translate(-400px,-400px)}}
 
   /* Center content */
-  .center{position:relative;z-index:1;text-align:center;animation:fadeUp 1s ease-out}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  .center{position:relative;z-index:1;text-align:center;animation:fadeUp .4s ease-out}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
 
   .mascot{
-    width:200px;height:auto;max-height:240px;
-    margin:0 auto 1.5rem;display:block;
-    filter:drop-shadow(0 0 40px rgba(139,92,246,.3));
-    animation:float 5s ease-in-out infinite;
+    width:180px;height:auto;max-height:200px;
+    margin:0 auto 1rem;display:block;
+    filter:drop-shadow(0 0 30px rgba(139,92,246,.25));
+    animation:float 4s ease-in-out infinite;
   }
-  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 
   h1{
     font-size:1.4rem;font-weight:600;color:#fff;letter-spacing:-.01em;
-    margin-bottom:.3rem;
+    margin-bottom:.2rem;
   }
-  .sub{font-size:.75rem;color:#8892a8;letter-spacing:.05em}
+  .ver{
+    font-size:.65rem;color:#a78bfa;letter-spacing:.05em;
+    margin-bottom:.5rem;font-family:'SF Mono',Monaco,monospace;
+  }
+  .sub{font-size:.7rem;color:#8892a8;letter-spacing:.05em;margin-bottom:1.2rem}
 
-  /* Single install line */
+  /* Skill() quick-copy — primary action */
   .cmd{
-    margin-top:1.5rem;font-family:'SF Mono',Monaco,monospace;
-    font-size:.7rem;color:#4a5268;cursor:pointer;
+    font-family:'SF Mono',Monaco,monospace;
+    font-size:.72rem;color:#4a5268;cursor:pointer;
     display:inline-flex;align-items:center;gap:.4rem;
-    padding:.4rem .8rem;border:1px solid rgba(255,255,255,.06);border-radius:6px;
-    transition:border-color .2s;
+    padding:.5rem .9rem;border:1px solid rgba(255,255,255,.08);border-radius:8px;
+    transition:border-color .2s,background .2s;
   }
-  .cmd:hover{border-color:rgba(167,139,250,.3)}
+  .cmd:hover{border-color:rgba(167,139,250,.4);background:rgba(167,139,250,.05)}
   .cmd .p{color:#a78bfa}
   .cmd .h{color:#2dd4bf}
-  .cmd .ok{color:#2dd4bf;opacity:0;transition:opacity .3s;font-size:.6rem}
+  .cmd .ok{color:#2dd4bf;opacity:0;transition:opacity .3s;font-size:.6rem;margin-left:.3rem}
   .cmd.done .ok{opacity:1}
-
-  .invoke{
-    margin-top:1rem;font-size:.6rem;color:#4a5268;
-  }
-  .invoke code{
-    color:#22d3ee;background:rgba(34,211,238,.05);padding:1px 5px;border-radius:3px;
-  }
 </style>
 </head>
 <body>
-<div class="mw"></div>
+<div class="stars"></div>
 <div class="nebula"></div>
 
 <div class="center">
   <img class="mascot" src="chibi.svg" alt="stellar-trails"
        onerror="this.style.display='none'">
+  <div class="ver">v9.9.1</div>
   <h1>stellar-trails</h1>
   <div class="sub">six-phase workflow</div>
   <div class="cmd" onclick="copyCmd(this)">
-    <span class="p">$</span><span class="h">clawhub</span> install stellar-trails
-    <span class="ok">✓</span>
+    <span class="p">Skill</span>(command=<span class="h">"stellar-trails"</span>)
+    <span class="ok">✓ copied</span>
   </div>
-  <div class="invoke">invoke: <code>Skill(command="stellar-trails")</code></div>
 </div>
 
 <script>
 function copyCmd(el){
-  navigator.clipboard.writeText('clawhub install stellar-trails').then(()=>{
+  navigator.clipboard.writeText('Skill(command="stellar-trails")').then(()=>{
     el.classList.add('done');
     setTimeout(()=>el.classList.remove('done'),1500);
   });
