@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.8.0
+- **version**: 9.9.0
 
 ---
 
@@ -1149,6 +1149,66 @@ Before using any GitHub Operations command:
    python3 -c "import json; d=json.load(open('/tmp/gh_user.json')); print(f'✓ Authenticated as: {d.get(\"login\")}')"
    ```
 3. **Never print PAT to logs** — always use `tr -d '[:space:]'` to strip, never `echo $GH_TOKEN`
+
+### Git Identity Setup (NEW in v9.9.0 — fix 3 git bugs)
+
+**Problem**: z.ai `/start.sh` sets global git config to `user.email=z@container` `user.name=Z User`. This causes 3 bugs:
+1. Commits attributed to "Z User" (local UUID identity) instead of GitHub token owner
+2. `~/.git-credentials` is in `$HOME` (`/home/z/`), NOT in `/home/z/my-project/` → **not in repo.tar** → wiped on session reset → `git push` fails with auth error
+3. `git -c user.email=X -c user.name=Y commit` sets author but committer falls back to global config (Z User)
+
+**Solution**: Run this setup BEFORE any `git commit` or `git push`. This overrides /start.sh's Z User config with the PAT owner's real GitHub identity.
+
+```bash
+# === Git Identity Setup (MANDATORY before any git commit/push) ===
+# Run this once per session, before first git operation.
+
+GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+
+# 1. Fetch token owner identity from GitHub API
+OWNER_JSON=$(curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user)
+OWNER_LOGIN=$(echo "$OWNER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('login',''))")
+OWNER_NAME=$(echo "$OWNER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name') or json.load(sys.stdin).get('login',''))")
+OWNER_EMAIL="${OWNER_LOGIN}@users.noreply.github.com"
+
+# 2. Override /start.sh's Z User config with token owner identity
+#    This fixes Bug 3: author AND committer now use owner identity
+git config --global user.email "$OWNER_EMAIL"
+git config --global user.name "$OWNER_NAME"
+
+# 3. Re-create ~/.git-credentials (NOT persistent — wiped on session reset)
+#    This fixes Bug 2: git push auth failure after session reset
+git config --global credential.helper store
+echo "https://${OWNER_LOGIN}:${GH_TOKEN}@github.com" > ~/.git-credentials
+chmod 600 ~/.git-credentials
+
+# 4. Export GIT_AUTHOR_* and GIT_COMMITTER_* env vars for double-ensure
+#    This fixes Bug 1: even if global config somehow reverts, env vars take priority
+export GIT_AUTHOR_NAME="$OWNER_NAME"
+export GIT_AUTHOR_EMAIL="$OWNER_EMAIL"
+export GIT_COMMITTER_NAME="$OWNER_NAME"
+export GIT_COMMITTER_EMAIL="$OWNER_EMAIL"
+
+# 5. Verify
+echo "✓ Git identity configured:"
+echo "  user.name:  $(git config --global user.name)"
+echo "  user.email: $(git config --global user.email)"
+echo "  credentials: $([ -f ~/.git-credentials ] && echo '✓ present' || echo '✗ MISSING')"
+echo "  author env:  GIT_AUTHOR_NAME=$GIT_AUTHOR_NAME"
+echo "  committer env: GIT_COMMITTER_NAME=$GIT_COMMITTER_NAME"
+```
+
+**Why this is needed every session**:
+- `/start.sh` runs at session start → sets Z User globally
+- `~/.git-credentials` is in `$HOME` (`/home/z/`) → NOT in `/home/z/my-project/` → NOT in `repo.tar` → wiped on reset
+- `GIT_AUTHOR_*` / `GIT_COMMITTER_*` env vars don't persist across sessions
+
+**Anti-patterns (FORBIDDEN)**:
+- ❌ "git -c flags are enough" — NO. `-c` sets per-command config, but committer can still fall back to global Z User. Env vars are the only reliable override.
+- ❌ "Credentials persist from last session" — NO. `~/.git-credentials` is in `$HOME`, not in `repo.tar`. Every session reset wipes it.
+- ❌ "Skip this, push will work" — NO. Without credentials, push fails with 403. Without identity override, commits show as Z User.
+
+**Integration with activation**: This setup should run as part of Step 2 (popup server) or immediately after Step 5, BEFORE any task that involves git commit/push. If a task doesn't involve git, this setup can be skipped.
 
 ### Operation 1: PR CI Status Check
 
