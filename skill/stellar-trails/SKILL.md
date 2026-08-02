@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.10.0
+- **version**: 9.10.1
 
 ---
 
@@ -176,6 +176,26 @@ grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-tra
 SKILL_VERSION_LINE=$(grep -n '^- \*\*version\*\*:' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1 | cut -d: -f1)
 echo "  E7 token: $(cat /tmp/st-active)"
 echo "  E10 line proof: SKILL.md line ${SKILL_VERSION_LINE}: $(sed -n "${SKILL_VERSION_LINE}p" /home/z/my-project/skills/stellar-trails/SKILL.md)"
+# Auto Git Identity Setup (NEW in v9.10.1) — if PAT exists, auto-configure git identity
+# from GitHub API. Fixes: Z User author, credentials gagal, UUID local.
+# Runs automatically every activation — no manual step needed.
+if [ -f /home/z/my-project/upload/PAT ]; then
+  _GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
+  _OWNER_JSON=$(curl -sS -m 10 -H "Authorization: Bearer $_GH_TOKEN" https://api.github.com/user 2>/dev/null)
+  _OWNER_LOGIN=$(echo "$_OWNER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('login',''))" 2>/dev/null)
+  if [ -n "$_OWNER_LOGIN" ]; then
+    _OWNER_NAME=$(echo "$_OWNER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('name') or d.get('login',''))" 2>/dev/null)
+    _OWNER_EMAIL="${_OWNER_LOGIN}@users.noreply.github.com"
+    git config --global user.email "$_OWNER_EMAIL" 2>/dev/null
+    git config --global user.name "$_OWNER_NAME" 2>/dev/null
+    git config --global credential.helper store 2>/dev/null
+    echo "https://${_OWNER_LOGIN}:${_GH_TOKEN}@github.com" > ~/.git-credentials 2>/dev/null
+    chmod 600 ~/.git-credentials 2>/dev/null
+    export GIT_AUTHOR_NAME="$_OWNER_NAME" GIT_AUTHOR_EMAIL="$_OWNER_EMAIL"
+    export GIT_COMMITTER_NAME="$_OWNER_NAME" GIT_COMMITTER_EMAIL="$_OWNER_EMAIL"
+    echo "  Git identity: $_OWNER_NAME <$_OWNER_EMAIL> (auto-configured from PAT)"
+  fi
+fi
 ```
 
 **Step 2 — Start popup server + verify mascot**: **E7 gate check at top of bash block** — verifies Step 1 ran by checking hash token.
