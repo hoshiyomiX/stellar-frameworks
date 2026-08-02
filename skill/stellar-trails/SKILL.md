@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.10.1
+- **version**: 9.10.2
 
 ---
 
@@ -693,7 +693,7 @@ python3 << 'PYEOF'
 import re, subprocess, tempfile, os
 with open('skill/stellar-trails/SKILL.md') as f:
     content = f.read()
-blocks = re.findall(r'```bash\n(.*?)```', content, re.DOTALL)
+blocks = re.findall(r'\x60\x60\x60bash\n(.*?)\x60\x60\x60', content, re.DOTALL)
 fail = 0
 for i, block in enumerate(blocks, 1):
     with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
@@ -802,7 +802,8 @@ fi
 
 #### Check 8: Markdown fence count is even (no orphan code blocks)
 ```bash
-FENCES=$(grep -c '```' skill/stellar-trails/SKILL.md)
+_F=$(printf '\x60\x60\x60')
+FENCES=$(grep -c "$_F" skill/stellar-trails/SKILL.md)
 if [ $((FENCES % 2)) -eq 0 ]; then
   echo "✓ Check 8: markdown fences even ($FENCES)"
 else
