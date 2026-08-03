@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.10.3
+- **version**: 9.10.4
 
 ---
 
@@ -370,7 +370,7 @@ This version adds three deterministic enforcement layers that shift compliance f
 
 Every task passes through all six phases (IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER). No phase is skipped, even for Minimal tier.
 
-**Mechanism**: Each phase entry requires a phase-marker print of the form `📍 ENTER <PHASE>` before any other phase work. Each phase exit requires `📍 EXIT <PHASE> → <NEXT>`. The DELIVER report's `Phase Trace` field lists every phase-marker pair. Missing markers = compliance bug.
+**Mechanism**: Each phase entry requires a phase-marker print of the form `☄️ ENTER <PHASE>` before any other phase work. Each phase exit requires `☄️ EXIT <PHASE> → <NEXT>`. The DELIVER report's `Phase Trace` field lists every phase-marker pair. Missing markers = compliance bug.
 
 **Why**: Phase skipping is the #1 silent failure mode. The marker print makes skipping visible in the transcript, not invisible in the LLM's hidden reasoning.
 

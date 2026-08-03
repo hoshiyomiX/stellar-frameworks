@@ -20,12 +20,12 @@ Every phase entry requires a phase-marker print before any other phase work. Eve
 
 | Phase | Entry Marker | Exit Marker |
 |-------|--------------|-------------|
-| IDLE | `📍 ENTER IDLE` | `📍 EXIT IDLE → SPECIFY` |
-| SPECIFY | `📍 ENTER SPECIFY` | `📍 EXIT SPECIFY → PLAN` (or `→ IMPLEMENT` if continuation) |
-| PLAN | `📍 ENTER PLAN` | `📍 EXIT PLAN → IMPLEMENT` |
-| IMPLEMENT | `📍 ENTER IMPLEMENT` | `📍 EXIT IMPLEMENT → VERIFY` |
-| VERIFY | `📍 ENTER VERIFY` | `📍 EXIT VERIFY → DELIVER` |
-| DELIVER | `📍 ENTER DELIVER` | `📍 EXIT DELIVER → IDLE` |
+| IDLE | `☄️ ENTER IDLE` | `☄️ EXIT IDLE → SPECIFY` |
+| SPECIFY | `☄️ ENTER SPECIFY` | `☄️ EXIT SPECIFY → PLAN` (or `→ IMPLEMENT` if continuation) |
+| PLAN | `☄️ ENTER PLAN` | `☄️ EXIT PLAN → IMPLEMENT` |
+| IMPLEMENT | `☄️ ENTER IMPLEMENT` | `☄️ EXIT IMPLEMENT → VERIFY` |
+| VERIFY | `☄️ ENTER VERIFY` | `☄️ EXIT VERIFY → DELIVER` |
+| DELIVER | `☄️ ENTER DELIVER` | `☄️ EXIT DELIVER → IDLE` |
 
 Missing markers = compliance bug. The DELIVER report's `Phase Trace` field lists every marker pair as evidence.
 
@@ -51,7 +51,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Purpose**: Receive the user's request, classify complexity and task type.
 
-**Entry marker**: Print `📍 ENTER IDLE` first.
+**Entry marker**: Print `☄️ ENTER IDLE` first.
 
 **Actions**:
 1. Receive and acknowledge the request.
@@ -89,7 +89,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 7. If task involves git repository and session was continued from previous conversation (context compression boundary), flag repo as "state-uncertain" and require Source State Verification in SPECIFY.
 
-8. Print `📍 EXIT IDLE → SPECIFY` (or `→ IMPLEMENT`/`→ VERIFY` if continuation detected).
+8. Print `☄️ EXIT IDLE → SPECIFY` (or `→ IMPLEMENT`/`→ VERIFY` if continuation detected).
 
 **Artifacts**: None. IDLE is a routing phase.
 
@@ -99,7 +99,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Purpose**: Produce a precise problem specification grounded in real sources, not assumptions.
 
-**Entry marker**: Print `📍 ENTER SPECIFY` first.
+**Entry marker**: Print `☄️ ENTER SPECIFY` first.
 
 **Actions**:
 1. **Source Availability & Documentation Check (SADC)** — before anything else:
@@ -135,7 +135,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Exit criteria**: All fields filled. User reviewed and confirmed. SADC complete. AskUserQuestion ran or skipped with reason.
 
-**Exit marker**: Print `📍 EXIT SPECIFY → PLAN` (or `→ IMPLEMENT` if continuation).
+**Exit marker**: Print `☄️ EXIT SPECIFY → PLAN` (or `→ IMPLEMENT` if continuation).
 
 ---
 
@@ -143,7 +143,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Purpose**: Design implementation strategy with traceable steps and a fallback approach.
 
-**Entry marker**: Print `📍 ENTER PLAN` first.
+**Entry marker**: Print `☄️ ENTER PLAN` first.
 
 **Actions**:
 1. Review the problem specification — confirm all requirements accounted for.
@@ -161,7 +161,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Exit criteria**: Every requirement maps to ≥1 step. Every step has Traceability ID. Verification strategy covers all edge cases. Fallback defined. Scope output (Standard/Complex). AWAITING APPROVAL printed.
 
-**Exit marker**: Print `📍 EXIT PLAN → IMPLEMENT` (only after user approval).
+**Exit marker**: Print `☄️ EXIT PLAN → IMPLEMENT` (only after user approval).
 
 ---
 
@@ -169,7 +169,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Purpose**: Execute the plan step by step.
 
-**Entry marker**: Print `📍 ENTER IMPLEMENT` first.
+**Entry marker**: Print `☄️ ENTER IMPLEMENT` first.
 
 **Actions**:
 1. For each implementation step:
@@ -191,7 +191,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Exit criteria**: All steps completed. Self-review passes. Pre-output checklist printed.
 
-**Exit marker**: Print `📍 EXIT IMPLEMENT → VERIFY`.
+**Exit marker**: Print `☄️ EXIT IMPLEMENT → VERIFY`.
 
 ---
 
@@ -199,7 +199,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Purpose**: Confirm implementation satisfies all requirements — including pre-deployment verification for external targets.
 
-**Entry marker**: Print `📍 ENTER VERIFY` first.
+**Entry marker**: Print `☄️ ENTER VERIFY` first.
 
 **Actions**:
 1. Run automated checks appropriate to task type:
@@ -217,7 +217,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Exit criteria**: All checks pass (or failures documented). Every Traceability ID verified. Every edge case confirmed. Pre-Deploy passed (if applicable).
 
-**Exit marker**: Print `📍 EXIT VERIFY → DELIVER`.
+**Exit marker**: Print `☄️ EXIT VERIFY → DELIVER`.
 
 ---
 
@@ -225,7 +225,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 **Purpose**: Present completed work with summary and compliance report.
 
-**Entry marker**: Print `📍 ENTER DELIVER` first.
+**Entry marker**: Print `☄️ ENTER DELIVER` first.
 
 **Actions**:
 0. **Pre-DELIVER print check (E2 Enforcement)** — print first, before any other DELIVER work:
@@ -265,7 +265,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 
 10. **Completion signal**: For web development tasks (Coding), call `Complete(project_type="web_dev", summary="...")`. For non-coding tasks, present output file path directly.
 
-**Exit marker**: Print `📍 EXIT DELIVER → IDLE`.
+**Exit marker**: Print `☄️ EXIT DELIVER → IDLE`.
 
 ---
 
