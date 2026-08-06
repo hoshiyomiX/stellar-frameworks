@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.1
+- **version**: 9.11.2
 
 ---
 
@@ -239,21 +239,26 @@ if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current versi
 elif [ -z "$LATEST" ]; then echo "✗ Step 3 FAILED: could not reach ClawHub registry (network down?)"
 elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Step 3: up to date (v$CURRENT) — E11 oracle: $(stat -c%s /tmp/st-clawhub-oracle.json) bytes"
 else
-  if clawhub --no-input update stellar-trails --force 2>/dev/null; then
-    # Sync the persistent zip immediately after a successful update.
-    # Without this, the zip stays stale until Step 4e runs — and if a session
-    # reset happens between this update and the next Skill() invoke, the stale
-    # zip re-extracts and downgrades skills/ back to the old version.
-    # (Fixes P2-NEW-1 from v9.2.0 audit.)
-    SKILL_DIR="/home/z/my-project/skills/stellar-trails"
-    USER_SKILLS_DIR="/home/user_skills"
-    if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then
-      cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" 2>/dev/null && echo "✓ Step 3: updated v$CURRENT → v$LATEST (zip synced)" || echo "✓ Step 3: updated v$CURRENT → v$LATEST (zip sync warning)"
-    else
-      echo "✓ Step 3: updated v$CURRENT → v$LATEST"
-    fi
-  else
-    echo "✗ Step 3 FAILED: clawhub update error"
+  echo "⚠️ Step 3: DRIFT DETECTED — local v$CURRENT vs registry v$LATEST — FORCE UPDATING..."
+  clawhub --no-input update stellar-trails --force
+  UPDATE_EXIT=$?
+  if [ $UPDATE_EXIT -ne 0 ]; then
+    echo "✗ Step 3 FAILED: clawhub update exited $UPDATE_EXIT — see error above"
+    exit 1
+  fi
+  # Post-update verification: re-read local version, confirm it changed
+  POST_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
+  if [ "$POST_VERSION" != "$LATEST" ]; then
+    echo "✗ Step 3 FAILED: update claimed success but local still v$POST_VERSION (expected v$LATEST)"
+    echo "  Possible cause: skill hidden by moderation, or clawhub update silent failure"
+    exit 1
+  fi
+  echo "✓ Step 3: FORCE UPDATE CONFIRMED — local v$POST_VERSION = registry v$LATEST"
+  # Sync the persistent zip immediately after a successful update.
+  SKILL_DIR="/home/z/my-project/skills/stellar-trails"
+  USER_SKILLS_DIR="/home/user_skills"
+  if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then
+    cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" 2>/dev/null && echo "✓ Step 3: zip synced to v$LATEST" || echo "⚠️ Step 3: zip sync warning"
   fi
 fi
 ```
