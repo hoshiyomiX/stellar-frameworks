@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.2
+- **version**: 9.11.3
 
 ---
 
@@ -73,8 +73,8 @@ Every bash block in activation writes/verifies a hash token. LLM cannot proceed 
 Step 1 writes the token. Steps 2-5 verify it at the top of their bash block:
 ```bash
 # Gate check (top of every Step 2+ bash block):
-EXPECTED=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
-ACTUAL=$(cat /tmp/st-active 2>/dev/null)
+EXPECTED=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | sha256sum | cut -c1-16)
+ACTUAL=$(cat /tmp/st-active)
 if [ "$EXPECTED" != "$ACTUAL" ]; then
   echo "✗ GATE FAILED: activation token missing/invalid — Step 1 must run first"
   exit 1
@@ -161,17 +161,17 @@ Step 3 runs `clawhub inspect` — output is ground truth from an external binary
 # `git fetch` from /home/z/my-project/ would operate on the sandbox workspace
 # repo — explicitly forbidden by knowledge/zai-sandbox.md.
 if [ -d "$HOME/.stellar-trails-repo/.git" ]; then
-  git -C "$HOME/.stellar-trails-repo" fetch origin --quiet 2>/dev/null
-  BRANCH=$(git -C "$HOME/.stellar-trails-repo" branch --show-current 2>/dev/null || echo main)
-  BEHIND=$(git -C "$HOME/.stellar-trails-repo" rev-list --count HEAD..origin/$BRANCH 2>/dev/null)
+  git -C "$HOME/.stellar-trails-repo" fetch origin --quiet
+  BRANCH=$(git -C "$HOME/.stellar-trails-repo" branch --show-current || echo main)
+  BEHIND=$(git -C "$HOME/.stellar-trails-repo" rev-list --count HEAD..origin/$BRANCH)
   if [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ]; then echo "✗ Step 1 FAILED: skill repo is $BEHIND commits behind origin — run git -C $HOME/.stellar-trails-repo pull"
-  else echo "✓ Step 1: context refreshed + SSV passed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown))"; fi
+  else echo "✓ Step 1: context refreshed + SSV passed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md || echo unknown))"; fi
 else
-  echo "✓ Step 1: context refreshed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null || echo unknown)) — SSV skipped (no skill git repo)"
+  echo "✓ Step 1: context refreshed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md || echo unknown)) — SSV skipped (no skill git repo)"
 fi
 # E7: Write hash token — Steps 2-5 verify this token to prove Step 1 ran.
 # Token = sha256(version line)[:16]. LLM cannot fake this without reading SKILL.md.
-grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16 > /tmp/st-active
+grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | sha256sum | cut -c1-16 > /tmp/st-active
 # E10: Print line-number proof — user can verify by reading same file.
 SKILL_VERSION_LINE=$(grep -n '^- \*\*version\*\*:' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1 | cut -d: -f1)
 echo "  E7 token: $(cat /tmp/st-active)"
@@ -181,16 +181,16 @@ echo "  E10 line proof: SKILL.md line ${SKILL_VERSION_LINE}: $(sed -n "${SKILL_V
 # Runs automatically every activation — no manual step needed.
 if [ -f /home/z/my-project/upload/PAT ]; then
   _GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-  _OWNER_JSON=$(curl -sS -m 10 -H "Authorization: Bearer $_GH_TOKEN" https://api.github.com/user 2>/dev/null)
-  _OWNER_LOGIN=$(echo "$_OWNER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('login',''))" 2>/dev/null)
+  _OWNER_JSON=$(curl -sS -m 10 -H "Authorization: Bearer $_GH_TOKEN" https://api.github.com/user)
+  _OWNER_LOGIN=$(echo "$_OWNER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('login',''))")
   if [ -n "$_OWNER_LOGIN" ]; then
-    _OWNER_NAME=$(echo "$_OWNER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('name') or d.get('login',''))" 2>/dev/null)
+    _OWNER_NAME=$(echo "$_OWNER_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('name') or d.get('login',''))")
     _OWNER_EMAIL="${_OWNER_LOGIN}@users.noreply.github.com"
-    git config --global user.email "$_OWNER_EMAIL" 2>/dev/null
-    git config --global user.name "$_OWNER_NAME" 2>/dev/null
-    git config --global credential.helper store 2>/dev/null
-    echo "https://${_OWNER_LOGIN}:${_GH_TOKEN}@github.com" > ~/.git-credentials 2>/dev/null
-    chmod 600 ~/.git-credentials 2>/dev/null
+    git config --global user.email "$_OWNER_EMAIL"
+    git config --global user.name "$_OWNER_NAME"
+    git config --global credential.helper store
+    echo "https://${_OWNER_LOGIN}:${_GH_TOKEN}@github.com" > ~/.git-credentials
+    chmod 600 ~/.git-credentials
     export GIT_AUTHOR_NAME="$_OWNER_NAME" GIT_AUTHOR_EMAIL="$_OWNER_EMAIL"
     export GIT_COMMITTER_NAME="$_OWNER_NAME" GIT_COMMITTER_EMAIL="$_OWNER_EMAIL"
     echo "  Git identity: $_OWNER_NAME <$_OWNER_EMAIL> (auto-configured from PAT)"
@@ -202,8 +202,8 @@ fi
 
 ```bash
 # E7 gate check — proves Step 1 actually ran (token requires reading SKILL.md)
-EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
-ACTUAL_TOKEN=$(cat /tmp/st-active 2>/dev/null)
+EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | sha256sum | cut -c1-16)
+ACTUAL_TOKEN=$(cat /tmp/st-active)
 if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
   echo "✗ Step 2 GATE FAILED: activation token missing/invalid — Step 1 must run first"
   exit 1
@@ -211,10 +211,10 @@ fi
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"; ZSCRIPTS="/home/z/my-project/.zscripts"
 if [ ! -f "$SKILL_DIR/chibi.svg" ]; then for REPO_CLONE in "/home/z/my-project/stellar-trails/skill/stellar-trails" "/home/z/my-project/.stellar-trails-repo/skill/stellar-trails" "$HOME/.stellar-trails-repo/skill/stellar-trails"; do [ -f "$REPO_CLONE/chibi.svg" ] && cp -f "$REPO_CLONE/chibi.svg" "$SKILL_DIR/chibi.svg" && break; done; fi
 if [ -d "$SKILL_DIR" ]; then mkdir -p "$ZSCRIPTS"; [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"; [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"; [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"; fi
-DEV_SH="$ZSCRIPTS/dev.sh"; [ -f "$DEV_SH" ] && ! ss -tlnp 2>/dev/null | grep -q ':3000 ' && ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
+DEV_SH="$ZSCRIPTS/dev.sh"; [ -f "$DEV_SH" ] && ! ss -tlnp | grep -q ':3000 ' && ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) &
 sleep 1
-HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null)
-MASCOT=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg 2>/dev/null)
+HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
+MASCOT=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg)
 if [ "$HTTP" = "200" ]; then echo "✓ Step 2: popup server running on :3000 (HTTP $HTTP, mascot $MASCOT)"; else echo "✗ Step 2 FAILED: popup server not responding (HTTP $HTTP)"; fi
 ```
 
@@ -224,17 +224,17 @@ if [ "$HTTP" = "200" ]; then echo "✓ Step 2: popup server running on :3000 (HT
 
 ```bash
 # E7 gate check
-EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
-ACTUAL_TOKEN=$(cat /tmp/st-active 2>/dev/null)
+EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | sha256sum | cut -c1-16)
+ACTUAL_TOKEN=$(cat /tmp/st-active)
 if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
   echo "✗ Step 3 GATE FAILED: activation token missing/invalid — Step 1 must run first"
   exit 1
 fi
-CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
+CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1)
 # E11: Write clawhub output to oracle file — Step 4 will cross-verify this.
 # LLM cannot fabricate this file without actually running clawhub (tool call recorded).
-clawhub inspect stellar-trails --json 2>/dev/null > /tmp/st-clawhub-oracle.json
-LATEST=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json 2>/dev/null || echo "")
+clawhub inspect stellar-trails --json > /tmp/st-clawhub-oracle.json
+LATEST=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json || echo "")
 if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current version from SKILL.md"
 elif [ -z "$LATEST" ]; then echo "✗ Step 3 FAILED: could not reach ClawHub registry (network down?)"
 elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Step 3: up to date (v$CURRENT) — E11 oracle: $(stat -c%s /tmp/st-clawhub-oracle.json) bytes"
@@ -247,7 +247,7 @@ else
     exit 1
   fi
   # Post-update verification: re-read local version, confirm it changed
-  POST_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
+  POST_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1)
   if [ "$POST_VERSION" != "$LATEST" ]; then
     echo "✗ Step 3 FAILED: update claimed success but local still v$POST_VERSION (expected v$LATEST)"
     echo "  Possible cause: skill hidden by moderation, or clawhub update silent failure"
@@ -258,7 +258,7 @@ else
   SKILL_DIR="/home/z/my-project/skills/stellar-trails"
   USER_SKILLS_DIR="/home/user_skills"
   if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then
-    cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" 2>/dev/null && echo "✓ Step 3: zip synced to v$LATEST" || echo "⚠️ Step 3: zip sync warning"
+    cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Step 3: zip synced to v$LATEST" || echo "⚠️ Step 3: zip sync warning"
   fi
 fi
 ```
@@ -269,8 +269,8 @@ If clawhub updated the skill: re-read SKILL.md from disk now. Cached context is 
 
 ```bash
 # E7 gate check
-EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
-ACTUAL_TOKEN=$(cat /tmp/st-active 2>/dev/null)
+EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | sha256sum | cut -c1-16)
+ACTUAL_TOKEN=$(cat /tmp/st-active)
 if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
   echo "✗ Step 4 GATE FAILED: activation token missing/invalid — Step 1 must run first"
   exit 1
@@ -280,7 +280,7 @@ if [ ! -f /tmp/st-clawhub-oracle.json ]; then
   echo "✗ Step 4 E11 FAILED: clawhub oracle file missing — Step 3 must run first"
   exit 1
 fi
-ORACLE_VERSION=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json 2>/dev/null || echo "")
+ORACLE_VERSION=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json || echo "")
 echo "  E11 oracle cross-check: registry latest = v${ORACLE_VERSION:-<parse failed>}"
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"; USER_SKILLS_DIR="/home/user_skills"; ZSCRIPTS="/home/z/my-project/.zscripts"
 FILES_OK="yes"
@@ -291,11 +291,11 @@ mkdir -p "$ZSCRIPTS"
 [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
 [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
 echo "✓ Step 4b: .zscripts/ force-overridden with latest files"
-OLD_PID=$(ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | head -1)
-if [ -n "$OLD_PID" ]; then kill "$OLD_PID" 2>/dev/null; sleep 1; echo "✓ Step 4c: old dev.sh (PID $OLD_PID) killed"; fi
+OLD_PID=$(ss -tlnp | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | head -1)
+if [ -n "$OLD_PID" ]; then kill "$OLD_PID"; sleep 1; echo "✓ Step 4c: old dev.sh (PID $OLD_PID) killed"; fi
 DEV_SH="$ZSCRIPTS/dev.sh"
 if [ -f "$DEV_SH" ]; then ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) & sleep 1
-  HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null)
+  HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
   if [ "$HTTP" = "200" ]; then echo "✓ Step 4d: dev.sh restarted on :3000 (HTTP $HTTP)"; else echo "✗ Step 4d FAILED: dev.sh restart failed (HTTP $HTTP)"; fi
 else echo "✗ Step 4d FAILED: dev.sh not found at $DEV_SH"; fi
 if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Step 4e: persistent zip synced" || echo "✗ Step 4e FAILED: zip sync error"; else echo "✗ Step 4e FAILED: directory not found"; fi
@@ -305,15 +305,15 @@ if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_
 
 ```bash
 # E7 gate check
-EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | sha256sum | cut -c1-16)
-ACTUAL_TOKEN=$(cat /tmp/st-active 2>/dev/null)
+EXPECTED_TOKEN=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | sha256sum | cut -c1-16)
+ACTUAL_TOKEN=$(cat /tmp/st-active)
 if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
   echo "✗ Step 5 GATE FAILED: activation token missing/invalid — Step 1 must run first"
   exit 1
 fi
 # E9: Write persistent activation log — user can audit anytime via:
 #   cat /home/user_skills/.st-activation-log
-ST_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md 2>/dev/null | head -1)
+ST_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1)
 ST_TIMESTAMP=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 ST_TOKEN=$(cat /tmp/st-active)
 echo "${ST_TIMESTAMP} v${ST_VERSION} token=${ST_TOKEN} steps=5/5 banner=YES" >> /home/user_skills/.st-activation-log
@@ -723,7 +723,7 @@ with open('skill/stellar-trails/SKILL.md') as f:
 blocks = re.findall(r'python3 -c ("[^"]+"|\'[^\']+\')', content)
 fail = 0
 for i, block in enumerate(blocks, 1):
-    cmd = f'echo "{{}}" | python3 -c {block} 2>/dev/null'
+    cmd = f'echo "{{}}" | python3 -c {block}'
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
     if r.returncode != 0:
         print(f"✗ python3 -c block {i} FAIL on empty JSON: {r.stderr.strip()[:80]}")
@@ -781,11 +781,11 @@ fi
 ```bash
 # Before push, verify skill is visible on registry (not moderation-hidden)
 # This catches the v9.6.0 bug where publish exit 0 but version didn't register
-REGISTRY_STATE=$(clawhub inspect stellar-trails --json 2>/dev/null)
+REGISTRY_STATE=$(clawhub inspect stellar-trails --json)
 if [ -z "$REGISTRY_STATE" ]; then
   echo "✗ Check 6 FAIL: cannot reach clawhub registry — push may publish to hidden skill"
 else
-  MOD_STATE=$(echo "$REGISTRY_STATE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('moderation',{}).get('state','unknown'))" 2>/dev/null || echo "unknown")
+  MOD_STATE=$(echo "$REGISTRY_STATE" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('moderation',{}).get('state','unknown'))" || echo "unknown")
   if [ "$MOD_STATE" = "hidden" ] || [ "$MOD_STATE" = "deleted" ]; then
     echo "✗ Check 6 FAIL: skill is $MOD_STATE by moderation — publish will not register"
     echo "  Contact clawhub moderator before pushing"
@@ -797,7 +797,7 @@ fi
 
 #### Check 7: YAML structure valid (if workflow files changed)
 ```bash
-if git diff --cached --name-only HEAD 2>/dev/null | grep -q '\.github/workflows/'; then
+if git diff --cached --name-only HEAD | grep -q '\.github/workflows/'; then
   python3 -c "import yaml; yaml.safe_load(open('.github/workflows/release.yml'))" && \
     echo "✓ Check 7: workflow YAML valid" || echo "✗ Check 7 FAIL: workflow YAML invalid"
 else
@@ -1005,8 +1005,8 @@ Replace `Skill(command="crawl4ai")` and `Skill(command="web-reader")` calls with
 # Fetch URL, follow redirects, set user-agent, 10s timeout, capture to file
 URL="<url>"
 OUTFILE="/tmp/st-retrieval-$(echo "$URL" | sha256sum | cut -c1-8).html"
-curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE" 2>/dev/null
-HTTP_STATUS=$(curl -sSL -m 10 -o /dev/null -w "%{http_code}" "$URL" 2>/dev/null)
+curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE"
+HTTP_STATUS=$(curl -sSL -m 10 -o /dev/null -w "%{http_code}" "$URL")
 [ "$HTTP_STATUS" = "200" ] || { echo "✗ Retrieval failed: HTTP $HTTP_STATUS"; exit 1; }
 echo "✓ Fetched $(stat -c%s "$OUTFILE") bytes from $URL"
 ```
@@ -1128,7 +1128,7 @@ This removes the `Skill(command="crawl4ai")` dependency. web-search is still ext
 # 2. Inline retrieval for top 3 URLs:
 for URL in "$URL1" "$URL2" "$URL3"; do
   OUTFILE="/tmp/st-retrieval-$(echo "$URL" | sha256sum | cut -c1-8).html"
-  curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE" 2>/dev/null
+  curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE"
   # ... extract text via python3 (Step 2 above) ...
   # ... truncate to 500 words (Step 3 above) ...
 done
@@ -1312,7 +1312,7 @@ curl -sS -L -m 60 -H "Authorization: Bearer $GH_TOKEN" \
 echo "Logs saved to /tmp/gh-logs-$RUN_ID.zip"
 unzip -o -q "/tmp/gh-logs-$RUN_ID.zip" -d "/tmp/gh-logs-$RUN_ID/"
 # Find the failed step log file
-find "/tmp/gh-logs-$RUN_ID/" -name "*Publish*" -o -name "*failed*" 2>/dev/null | head -5
+find "/tmp/gh-logs-$RUN_ID/" -name "*Publish*" -o -name "*failed*" | head -5
 ```
 
 ### Operation 4: API Queries with jq-style Filtering
