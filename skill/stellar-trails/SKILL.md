@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.10.4
+- **version**: 9.11.0
 
 ---
 
@@ -1675,6 +1675,140 @@ Phase Trace: IDLE→SPECIFY→PLAN→IMPLEMENT→VERIFY→DELIVER (internal)
 ## Completion Signal
 
 For interactive web development tasks (Next.js, UI components, dashboards), implementation is delegated to fullstack-dev — the DELIVER phase calls the platform's `Complete(project_type="web_dev", summary="...")` tool to finalize. For non-web coding tasks, DELIVER presents output file paths. In all cases, DELIVER appends a Snapshot to `worklog.md`.
+
+---
+
+## Layered Memory Protocol (NEW in v9.11.0 — adapted from TencentDB-Agent-Memory)
+
+**Inspiration**: Adapted from [TencentDB-Agent-Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory) (15K stars, MIT license) by Tencent Cloud. The original project implements a team-level memory hub with 4 memory assets (Chat Memory, Skill, LLM-Wiki, Code-Graph) and layered memory (L0-L3). **Not a wrapper** — adapted to stellar-trails' sandbox-native, no-external-dependency constraints.
+
+**Problem this solves**: stellar-trails worklog is flat (L0 only — raw task state). Across 20+ sessions, reusable patterns are lost. Each session starts from scratch, repeating mistakes that were already solved. The original TencentDB project solves this with vector search + Docker + team-level sharing — too heavy for z.ai sandbox. This adaptation uses structured text files (no vector DB, no Docker).
+
+### Layered Memory Architecture
+
+| Layer | What it stores | stellar-trails file | When written |
+|---|---|---|---|
+| **L0 Task** | Raw task state (what was done, files modified, outcome) | `worklog.md` (existing) | DELIVER phase (existing) |
+| **L1 Pattern** | Reusable facts extracted from task (approach that worked, gotchas, shortcuts) | `knowledge/patterns.md` (NEW) | DELIVER phase (NEW extraction) |
+| **L2 Scenario** | Project-level context blocks (accumulated L1 patterns grouped by project/domain) | `knowledge/scenarios.md` (NEW) | DELIVER phase (NEW, when L1 count ≥5 for same domain) |
+| **L3 Profile** | Stable user preferences, working style, recurring decisions | `knowledge/user-profile.md` (NEW) | DELIVER phase (NEW, when pattern repeats ≥3 times) |
+
+### L1 Pattern Extraction (at DELIVER phase)
+
+After each Standard/Complex task, extract reusable knowledge into `knowledge/patterns.md`:
+
+```bash
+# === L1 Pattern Extraction (NEW in v9.11.0) ===
+# Run at DELIVER phase, after worklog snapshot.
+# Extract: what approach worked, what went wrong, what was learned.
+PATTERNS_FILE="/home/z/my-project/skills/stellar-trails/knowledge/patterns.md"
+if [ ! -f "$PATTERNS_FILE" ]; then
+  echo "# Pattern Library (L1 Memory)" > "$PATTERNS_FILE"
+  echo "" >> "$PATTERNS_FILE"
+  echo "Auto-extracted reusable patterns from stellar-trails tasks." >> "$PATTERNS_FILE"
+  echo "Adapted from TencentDB-Agent-Memory L1 Atom concept." >> "$PATTERNS_FILE"
+  echo "" >> "$PATTERNS_FILE"
+  echo "---" >> "$PATTERNS_FILE"
+fi
+# LLM appends pattern entry (not bash — LLM must think + write):
+# Format:
+# ## [YYYY-MM-DD] <domain>: <pattern-name>
+# **Context**: <when this pattern applies>
+# **Approach**: <what worked>
+# **Gotcha**: <what to avoid>
+# **Source**: <task that produced this pattern>
+```
+
+**LLM responsibility**: The LLM must actively extract patterns, not just append task state. Ask: "What did I learn from this task that would help next time?"
+
+### L2 Scenario Accumulation (auto-triggered)
+
+When L1 patterns accumulate ≥5 entries for the same domain (e.g., "git", "ci", "clawhub", "sandbox"), group them into `knowledge/scenarios.md`:
+
+```markdown
+# Scenario: Git Identity Issues
+## Patterns:
+- [2026-07-09] git: Z User override requires env vars, not just config
+- [2026-07-20] git: ~/.git-credentials not in repo.tar, wiped each session
+- [2026-07-26] git: Auto Git Identity Setup in Step 1 solves both
+## Composite insight: Always run Git Identity Setup at session start if PAT exists
+```
+
+### L3 User Profile (auto-triggered)
+
+When the same decision pattern repeats ≥3 times across sessions, extract to `knowledge/user-profile.md`:
+
+```markdown
+# User Profile (L3 Memory)
+## Preferences:
+- Prefers direct Edit tool over patch files ("junk")
+- PAT kept permanently at /home/z/my-project/upload/PAT
+- Wants version bumps on every change, even small fixes
+- Prefers Indonesian language for explanations, English for code
+```
+
+### Knowledge On-Demand Loading (Step 5 update)
+
+Instead of always loading ALL knowledge files at Step 5, load only relevant ones:
+
+| Task type | Load |
+|---|---|
+| Coding (git/CI) | `knowledge/zai-sandbox.md` + `knowledge/error-patterns.md` + `knowledge/patterns.md` (L1) |
+| Coding (web dev) | `knowledge/zai-sandbox.md` + `knowledge/architecture.md` |
+| Document | `knowledge/conventions.md` + `knowledge/patterns.md` (L1) |
+| Audit/Diagnosis | `knowledge/error-patterns.md` + `knowledge/patterns.md` (L1) + `knowledge/scenarios.md` (L2) |
+| Continuation (same domain) | Only `knowledge/scenarios.md` (L2) for that domain |
+| New session (cold start) | `knowledge/user-profile.md` (L3) + `knowledge/patterns.md` (L1) for bootstrap |
+
+**Rule**: Never load ALL knowledge files unless explicitly needed. Context budget is finite — loading irrelevant knowledge wastes tokens.
+
+### Error Pattern Accumulation
+
+`knowledge/error-patterns.md` (existing file, currently static) should grow dynamically. At DELIVER, if task encountered an error that was fixed:
+
+```bash
+# === Error Pattern Accumulation (NEW in v9.11.0) ===
+ERRORS_FILE="/home/z/my-project/skills/stellar-trails/knowledge/error-patterns.md"
+# LLM appends error entry:
+# Format:
+# ## [YYYY-MM-DD] <error-type>
+# **Symptom**: <what user observed>
+# **Root cause**: <proximate cause, 1 hop>
+# **Fix**: <what resolved it>
+# **Prevention**: <how to avoid next time>
+```
+
+### Anti-patterns (FORBIDDEN)
+
+- ❌ "Just append to worklog, patterns are extra work" — NO. Without L1 extraction, each session repeats mistakes. The 30 seconds of pattern extraction saves hours of re-discovery.
+- ❌ "Load all knowledge files at Step 5 just in case" — NO. Context budget is finite. Load only what's relevant to the task type.
+- ❌ "Skip L2/L3 — they're too complex" — NO. L2/L3 are auto-triggered, not manual. The LLM doesn't decide when to create them — the count threshold triggers them.
+- ❌ "Use vector search instead" — NO. Vector search needs external DB + embedding model. Sandbox-native text search (grep) is sufficient for the pattern volumes stellar-trails generates.
+
+### Integration with existing protocols
+
+- **Worklog Continuity Protocol**: L0 (existing worklog) unchanged. L1-L3 are new files that supplement, not replace.
+- **DELIVER phase**: After worklog snapshot, run L1 Pattern Extraction. If L1 count for domain ≥5, also update L2. If decision pattern repeats ≥3, also update L3.
+- **Step 5 activation**: Knowledge on-demand loading replaces "load all knowledge files" — only load relevant subset.
+- **Proximate Cause Triage**: L1 patterns feed into the Parsimony Audit — past patterns are evidence of what worked.
+- **Pre-Push Local Verification**: No change — pattern files are in `knowledge/` directory, included in skill zip.
+
+### What was NOT adapted (out of scope)
+
+| TencentDB feature | Why not adapted |
+|---|---|
+| Vector search (BM25 + embedding) | Needs external DB + embedding model — not sandbox-native |
+| Team-level sharing (ACL, multi-agent) | stellar-trails is single-agent in z.ai sandbox |
+| Code-Graph (codebase indexer) | Needs AST parser + graph DB — too heavy |
+| Docker deployment | Not sandbox-native |
+| Async pipeline (background processing) | No background process support in z.ai sandbox |
+| L0 Conversation storage | Conversation history is managed by z.ai platform, not skill |
+
+### Honest assessment
+
+This adaptation captures the **concept** of layered memory (L0-L3) and **structured knowledge accumulation**, but NOT the **retrieval quality** of vector search. stellar-trails' pattern retrieval is grep-based — sufficient for ~50-100 patterns, but won't scale to thousands. For the expected pattern volume (1-2 per session, ~50 per 25 sessions), text search is adequate.
+
+**Expected impact**: After 10 sessions, `knowledge/patterns.md` will have ~15-20 entries. Next session's Step 5 loads these patterns → LLM avoids repeating past mistakes → faster task completion, fewer CI cycles wasted on known bugs.
 
 ---
 
