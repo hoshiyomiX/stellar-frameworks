@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.3
+- **version**: 9.11.4
 
 ---
 
@@ -34,6 +34,8 @@ Before calling ANY tool (Read, Write, Bash, Edit, Grep, Glob, Task, etc.) in a s
 This is a **HARD GATE**. No tool call may precede the banner + 5 steps. Violating this gate is a correctness bug, not a style preference.
 
 **Why this gate exists**: Audit of 5 prior sessions found 0/5 compliance with activation mandate. LLMs rationalize skipping ("continuation task", "simple task", "save tokens", "user didn't complain last time"). The gate makes skipping impossible to rationalize — you literally cannot call a tool until activation is done.
+
+**Subagent exemption (added v9.11.4)**: This gate applies to the **main agent** only. Subagents in z.ai receive a compressed task prompt from the orchestrator — they do NOT have SKILL.md pre-loaded into context. To learn the gate exists, a subagent would have to call `Skill(command="stellar-trails")`, which is itself a pre-banner tool call (chicken-and-egg). Therefore E4 is structurally unenforceable on subagents. If subagent compliance is required, the orchestrating main agent MUST pre-inject the relevant SKILL.md sections (activation mandate + step bash blocks) into the subagent's task prompt — only then can the subagent comply. Verified by SIM-001/SIM-002 audit (v9.11.3): both `Explore` and `general-purpose` subagents can call `Skill()` and read SKILL.md from disk, but neither prints the banner first because they have no prior knowledge of the mandate.
 
 ### FIRST OUTPUT — Print this banner, then execute Steps 1–5
 
@@ -83,6 +85,8 @@ fi
 
 If LLM skips Step 1, token doesn't exist → Step 2 bash exits 1 → LLM cannot complete task. **LLM cannot fake this** because writing the correct hash requires reading SKILL.md (a tool call recorded in transcript).
 
+**Subagent write access caveat (added v9.11.4)**: `/tmp/st-active` is owned by the same user that subagents run as (`-rw-rw-r-- z:z`), so a subagent CAN overwrite the token to bypass the E7 gate. The gate enforces Step 1 → Step 2+ ordering for the **main agent**; it does not prevent a malicious subagent from writing a valid token without running Step 1. Mitigation: the orchestrating main agent should pre-validate that the token was written by Step 1 (not by a subagent) before trusting subsequent steps. This is best-effort enforcement, not tamper-proof.
+
 #### Vektor 2 — TodoWrite Live Marker (E8)
 
 TodoWrite is a platform tool that renders a live checklist visible to the user in real-time. The user sees checkboxes transition `pending → in_progress → completed` as the LLM works. This is **visibility enforcement** — user can SEE if steps are being executed, not just trust LLM's text claims.
@@ -113,6 +117,8 @@ Step 5 writes the log entry. Next session's Step 1 can read the log to verify pr
 
 **This is fraud detection, not prevention** — but it raises the cost of fraud (LLM must fabricate consistent timestamps + session IDs).
 
+**Best-effort caveat (added v9.11.4)**: `/home/user_skills/` is world-writable (`drwxrwxrwx` mode 0777) in the z.ai sandbox, meaning any process — including subagents — can modify or append to the activation log. This vector is fraud-detection (anomalous timestamps or session IDs are visible on audit), not fraud-prevention. A determined attacker with bash access can forge entries that pass monotonicity checks. The real value of E9 is **visibility for the user**, not cryptographic integrity.
+
 #### Vektor 4 — Read Tool Line-Number Proof (E10)
 
 Step 1 must print a specific line from SKILL.md in the format `Read` tool returns (`<line_number>→<content>`). LLM cannot fabricate this format without actually calling Read.
@@ -136,7 +142,9 @@ Step 3 runs `clawhub inspect` — output is ground truth from an external binary
 - Step 4 compares to what LLM claimed in transcript
 - If mismatch → COMPLIANCE FAILURE reported to user
 
-**Why this works**: `clawhub` is a binary outside LLM control. LLM cannot fabricate `/tmp/st-clawhub-oracle.json` without actually running clawhub (which is a tool call recorded in transcript). The file's content is ground truth — LLM's text claims can be verified against it.
+**Why this works**: `clawhub` is a binary outside LLM control. The real protection is that Step 4 **re-runs `clawhub inspect`** and cross-checks the version — that re-run is the actual oracle. The cached file at `/tmp/st-clawhub-oracle.json` is just an optimization to avoid a second network call.
+
+**Fabrication caveat (corrected v9.11.4)**: A previous version of this section claimed "LLM cannot fabricate `/tmp/st-clawhub-oracle.json` without actually running clawhub." This was overstated — the file is plain JSON at `/tmp/` (permissions `-rw-rw-r--`), and any bash command can write arbitrary content to it. The actual protection is Step 4's re-verification via fresh `clawhub inspect` calls, not the file's contents. The file is an audit artifact, not a tamper-proof oracle.
 
 #### Combined Enforcement Matrix
 
@@ -435,6 +443,8 @@ For any decision point where the LLM would otherwise guess audience/style/length
 
 **Why**: Guessing audience/style/length causes the most expensive rework in document tasks. One batched 30-second question round prevents hours of regeneration.
 
+**Subagent unavailability (added v9.11.4)**: `AskUserQuestion` is provisioned ONLY to the main agent. Subagent toolsets in z.ai are limited to: `Bash, Glob, Grep, LS, Read, Edit, MultiEdit, Write, TodoWrite, TodoRead, Skill`. If a subagent encounters a decision that would normally require `AskUserQuestion`, it MUST return control to the orchestrating main agent with a clear statement of the decision needed — do NOT guess. The main agent can then invoke `AskUserQuestion` and re-dispatch the subagent with the user's answer.
+
 ---
 
 ## Workflow Phases
@@ -483,6 +493,30 @@ next_step: <what user should do next, or "IDLE - awaiting input">
 
 On context truncation (IDLE): read the last `---` block from `worklog.md`. If the task description matches the current request, resume from the recorded phase.
 
+### Worklog Rotation Policy (NEW in v9.11.4)
+
+**Problem**: `worklog.md` grows unbounded — at ~1KB per DELIVER snapshot, 1000 tasks would produce ~1MB file. Loading 1MB into context for "read last entry" wastes tokens.
+
+**Policy**: When `worklog.md` exceeds 100 entries (≈100KB), rotate:
+1. Rename current `worklog.md` → `worklog-archive-YYYY-MM-DD.md` (date-stamped)
+2. Create new `worklog.md` with the last 5 entries copied from the archived file (preserves continuity for next session)
+3. Archive files accumulate in `/home/z/my-project/` — user can delete old archives anytime
+
+**Rotation bash (run at DELIVER phase, after snapshot append)**:
+```bash
+WORKLOG="/home/z/my-project/worklog.md"
+ENTRY_COUNT=$(grep -c '^---$' "$WORKLOG" 2>/dev/null || echo 0)
+if [ "$ENTRY_COUNT" -gt 100 ]; then
+  ARCHIVE="${WORKLOG%.md}-archive-$(date -u '+%Y-%m-%d').md"
+  mv "$WORKLOG" "$ARCHIVE"
+  # Preserve last 5 entries for continuity
+  awk 'BEGIN{RS="^---$"} {entries[NR]=$0} END{print "---"; for(i=NR-4;i<=NR;i++) if(entries[i]) print entries[i]}' "$ARCHIVE" > "$WORKLOG"
+  echo "✓ Worklog rotated: $ARCHIVE ($(grep -c '^---$' "$ARCHIVE") entries archived), $WORKLOG reset to last 5 entries"
+fi
+```
+
+**Knowledge on-demand loading**: At Step 5 activation, only read the **last 3 entries** of `worklog.md` (not the whole file) — sufficient for continuity check without loading stale history.
+
 ---
 
 ## Task Type Awareness
@@ -525,13 +559,11 @@ Before planning any implementation, verify the approach is grounded in real sour
 
 **Main agent mandate (Standard/Complex)**: BEFORE writing the problem specification, the **main agent** (not a subagent) invokes `Skill(command="web-search")` to find existing solutions, then uses the **Inline Content Retrieval** protocol (see Inline Content Retrieval section, NEW in v9.5.0) to extract content from top 3-5 URLs → ≤500-word summary. **No external extraction skill dependency** — uses native curl + python3.
 
-**Why main agent, not subagent**: The z.ai sandbox mandates "Skill invocation and skill-driven file generation MUST be done by the main agent, NEVER by subagents." Subagents in z.ai do not have access to skill instructions, so a subagent that calls `Skill(command="web-search")` will fail silently. (Removed subagent delegation in v9.1.0 — see audit P0-2.)
+**Why main agent, not subagent**: The z.ai sandbox main agent has the SKILL.md pre-loaded into its context at session start; subagents do not (their context is the orchestrating main agent's task prompt). While subagents CAN invoke `Skill(command="stellar-trails")` after the fact (verified v9.11.4 — see Subagent Compliance Matrix below), doing so consumes ~95K tokens of the subagent's budget just to load the skill — wasteful for a single SADC lookup. The main agent already has SKILL.md in context, so it can perform SADC inline at near-zero marginal cost. Additionally, subagent prompts are compressed by the orchestrator, which may strip nuance needed for SADC source evaluation.
 
 If no existing solution is found, state it explicitly — "searched npm/PyPI/docs, no existing package found" is a valid result. Building from scratch when a library exists is a spec-level defect.
 
 **When subagents ARE appropriate**: Subagents may be used for non-skill tasks (e.g., "summarize these 5 URLs", "compare these 2 code samples"). The main agent fetches content via skills first, then delegates pure-text analysis to subagents. The rule: skills are invoked by the main agent; subagents operate on text the main agent has already retrieved.
-
-Historical subagent delegation template (deprecated): see `references/sadc-subagent-delegation.md`.
 
 ---
 
@@ -823,6 +855,47 @@ echo "✓ Check 9: post-push plan acknowledged"
 echo "  After CI succeeds, MUST poll clawhub inspect until latestVersion = $NEW_VERSION"
 echo "  If registry doesn't update within 60s of CI success, fetch CI logs + diagnose"
 echo "  (This catches the v9.6.0 bug: publish exit 0 but version not registered)"
+```
+
+#### Check 10: index.html version matches SKILL.md (NEW v9.10.1)
+```bash
+SKILL_VERSION=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' skill/stellar-trails/SKILL.md | head -1)
+INDEX_VERSION=$(grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+' skill/stellar-trails/index.html | head -1)
+if [ "$SKILL_VERSION" != "$INDEX_VERSION" ]; then
+  echo "✗ Check 10 FAIL: SKILL.md v$SKILL_VERSION vs index.html v$INDEX_VERSION — version drift"
+else
+  echo "✓ Check 10: index.html version matches SKILL.md (v$SKILL_VERSION)"
+fi
+```
+
+#### Check 11: No duplicate knowledge files (NEW v9.11.4)
+```bash
+# Catches byte-identical duplicate files in knowledge/ subdirs (leftover from path-mismatch fixes)
+DUPES=$(find skill/stellar-trails/knowledge/ -type f -name "*.md" -exec md5sum {} \; | sort | uniq -d -w 32 | wc -l)
+if [ "$DUPES" -gt 0 ]; then
+  echo "✗ Check 11 FAIL: $DUPES duplicate knowledge file(s) detected:"
+  find skill/stellar-trails/knowledge/ -type f -name "*.md" -exec md5sum {} \; | sort | uniq -d -w 32
+  echo "  Remove duplicates — only top-level knowledge/*.md should exist (no platform/ or universal/ subdirs)"
+else
+  echo "✓ Check 11: no duplicate knowledge files"
+fi
+```
+
+#### Check 12: phases.md ↔ SKILL.md SADC drift (NEW v9.11.4)
+```bash
+# Catches drift between phases.md SADC step and SKILL.md SADC section
+# Both must agree: main agent inline, NO subagent dispatch, NO crawl4ai/web-reader invocations
+# Note: matches positive invocations only (Skill(command="...") or "dispatched"), not negations like "No crawl4ai"
+PHASES_SUBAGENT=$(grep -cE 'Skill\(command="(crawl4ai|web-reader)"\)|subagent dispatched|Task\(subagent_type' skill/stellar-trails/procedure/phases.md)
+PHASES_SUBAGENT=${PHASES_SUBAGENT:-0}
+PHASES_CRAWL=0  # accounted for in PHASES_SUBAGENT above via Skill(command="...")
+if [ "$PHASES_SUBAGENT" -gt 0 ]; then
+  echo "✗ Check 12 FAIL: phases.md still references removed SADC patterns (count: $PHASES_SUBAGENT)"
+  echo "  SKILL.md removed subagent SADC in v9.1.0 and crawl4ai in v9.5.0 — phases.md must match"
+  grep -nE 'Skill\(command="(crawl4ai|web-reader)"\)|subagent dispatched|Task\(subagent_type' skill/stellar-trails/procedure/phases.md
+else
+  echo "✓ Check 12: phases.md SADC step aligned with SKILL.md (no subagent dispatch, no crawl4ai/web-reader invocations)"
+fi
 ```
 
 ### When to skip Pre-Push Local Verification

@@ -105,7 +105,7 @@ Phase transitions are guarded. A phase cannot begin until its entry condition is
 1. **Source Availability & Documentation Check (SADC)** — before anything else:
    - **Minimal tier**: Skip SADC entirely.
    - **Simple tier**: Quick inline check against at least one source.
-   - **Standard/Complex tier**: Print `📡 SADC subagent dispatched (Task ID SADC-XXX)` BEFORE writing any problem-spec text. Launch `Task(subagent_type:'general-purpose')` to research existing solutions via `web-search` skill + `crawl4ai`/`web-reader` extraction. Subagent returns ≤500-word summary. The PLAN → IMPLEMENT gate REQUIRES a Task() call in transcript for Standard/Complex tasks.
+   - **Standard/Complex tier**: Print `📡 SADC: main agent researching inline` BEFORE writing any problem-spec text. The **main agent** invokes `Skill(command="web-search")` to find existing solutions, then uses the **Inline Content Retrieval** protocol (curl + python3 stdlib, see SKILL.md "Inline Content Retrieval" section) to extract content from top 3-5 URLs → ≤500-word summary. **No subagent dispatch. No crawl4ai/web-reader.** (Subagent SADC delegation removed in v9.1.0; crawl4ai dependency removed in v9.5.0 — both replaced by main-agent inline protocol in v9.11.4.)
    - Record all sources checked. If no existing solution found, state explicitly.
 
 2. **AskUserQuestion Gate (E3 Enforcement)** — for deliverable-creation tasks (Document, Visualization, PPT, PDF, Excel, dashboard, poster, script, chart-as-deliverable):

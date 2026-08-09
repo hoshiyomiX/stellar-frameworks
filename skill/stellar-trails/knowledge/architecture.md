@@ -2,7 +2,15 @@
 
 ## Purpose
 
-This document describes the runtime environment, directory structure, service topology, and key constraints. Use this as the authoritative reference when making decisions about where code lives and how services communicate. Platform-specific overrides are in `knowledge/platform/`.
+This document describes the runtime environment, directory structure, service topology, and key constraints. Use this as the authoritative reference when making decisions about where code lives and how services communicate. Platform-specific overrides are in `knowledge/zai-sandbox.md` (top-level, not `knowledge/platform/` — that subdir was removed in v9.11.4 as a byte-identical duplicate).
+
+**Related files** (load on-demand for Coding tasks):
+- `constraints/code-standards.md` — function standards, naming, max 50 lines/function
+- `constraints/type-safety.md` — TypeScript strict-mode rules
+- `knowledge/conventions.md` — universal coding conventions
+- `knowledge/error-patterns.md` — common error patterns and fixes
+
+These files live in `constraints/` (not `knowledge/`) because they are prescriptive standards (must-follow) rather than descriptive knowledge (background). The `phases.md` IMPLEMENT phase instructs loading them at the first coding step.
 
 ---
 

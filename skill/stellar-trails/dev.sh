@@ -14,7 +14,7 @@
 #   1. SIGHUP trap in python3 (signal.SIG_IGN) — survive terminal close
 #   2. SIGHUP trap in bash (trap '' SIGHUP) — wrapper survives too
 #   3. Log to /tmp/st-devsh.log — post-mortem debugging
-#   4. PID file (/tmp/st-devsh.pid) — prevent duplicate instances
+#   4. PID file (.zscripts/st-devsh.pid, moved from /tmp/ in v9.11.4) — prevent duplicate instances
 #   5. Stale PID detection — clean up if process already dead
 #   6. Rapid-crash backoff — if python3 exits within 2s, increase sleep
 #      (prevents spin loop on persistent failure, but NEVER gives up)
@@ -33,7 +33,10 @@ set -e
 
 ZSCRIPTS_DIR="${ZSCRIPTS_DIR:-/home/z/my-project/.zscripts}"
 PORT="${PORT:-3000}"
-PID_FILE="/tmp/st-devsh.pid"
+# PID file moved from /tmp/ to .zscripts/ (v9.11.4) — /tmp/ is shared across shells
+# and race-prone if multiple dev.sh start simultaneously. .zscripts/ is in repo.tar
+# so survives session reset, and is owned by the same user.
+PID_FILE="$ZSCRIPTS_DIR/st-devsh.pid"
 LOG_FILE="/tmp/st-devsh.log"
 
 mkdir -p "$ZSCRIPTS_DIR"
