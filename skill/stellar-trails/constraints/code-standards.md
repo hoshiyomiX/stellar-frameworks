@@ -27,7 +27,7 @@ These constraints apply to every `.ts` and `.tsx` file.
 
 ## Import Order [REQUIRED]
 
-Strict ordering within every file. See `knowledge/universal/conventions.md` for the full specification with examples.
+Strict ordering within every file. See `knowledge/conventions.md` for the full specification with examples.
 
 ```
 React / Next.js  →  External packages  →  Internal (@/ paths)  →  Relative imports  →  Types (import type)

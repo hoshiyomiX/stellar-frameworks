@@ -4,7 +4,7 @@
 
 This document catalogs common errors encountered in the z.ai sandbox, with focus on platform-specific issues that are not obvious from the error message alone. Generic TypeScript and React errors are excluded — those are assumed knowledge.
 
-For the structured error resolution workflow, see `procedure/decision-trees/error-resolution.md`.
+For the structured error resolution workflow, see `procedure/error-resolution.md`.
 
 ---
 
@@ -130,6 +130,6 @@ When encountering an error, follow this sequence:
 2. Check the dev log at `/home/z/my-project/dev.log` — read the file directly to inspect recent errors and server output.
 3. Determine whether this is a sandbox-specific issue:
    - Does it involve `localhost`, port numbers, `XTransformPort`, Prisma, or the SDK?
-   - If yes: match against the patterns in this document and in `knowledge/platform/zai-sandbox.md`.
+   - If yes: match against the patterns in this document and in `knowledge/zai-sandbox.md`.
    - If no: apply standard debugging (type check, syntax review, logic trace).
 4. If no pattern matches: isolate the error to the smallest possible reproduction and investigate from there.

@@ -17,7 +17,7 @@ When any error is detected, stop all work and complete these actions before atte
 2. Record the stack trace if one is available.
 3. Check `/home/z/my-project/dev.log` for additional context — read the file directly to inspect recent errors and server output.
 4. Record what the agent was doing when the error occurred (which phase, which Traceability ID, which command).
-5. Open the incident report template (`procedure/templates/incident-report.md`) and fill in the "Error Capture" section.
+5. Open the incident report template (inline in SKILL.md under `<template name="incident-report">`) and fill in the "Error Capture" section.
 
 **Output:** A completed Error Capture section in the incident report.
 
@@ -123,11 +123,11 @@ Use the error message and context to classify the error into one of the categori
 | Category | Indicators | Reference |
 |----------|-----------|-----------|
 | **Wrong Approach** | Fix requires rewriting 50%+ of implementation, same error recurs after 2 fix attempts, required feature doesn't exist in chosen library/framework | See Pivot Assessment below |
-| **Compilation / Syntax** | `SyntaxError`, `Unexpected token`, `cannot find module`, build fails | `knowledge/universal/conventions.md` (import rules, file extensions) |
-| **Type** | TypeScript error (`TSxxxx`), `Type 'X' is not assignable to type 'Y'`, type mismatch | `knowledge/universal/conventions.md` (type constraints, `unknown` vs `any`) |
-| **Runtime** | `TypeError`, `ReferenceError`, `Cannot read properties of undefined`, function crashes | `knowledge/universal/error-patterns.md` (runtime error patterns) |
-| **Network / Gateway** | `ECONNREFUSED`, `fetch failed`, `502 Bad Gateway`, CORS error, WebSocket failure | `knowledge/universal/error-patterns.md` (network/gateway section), `knowledge/universal/architecture.md` (service communication), `knowledge/platform/zai-sandbox.md` (gateway routing) |
-| **Database / Prisma** | Prisma error, `Unique constraint failed`, `PrismaClient not generated`, query error | `knowledge/universal/error-patterns.md` (database section) |
+| **Compilation / Syntax** | `SyntaxError`, `Unexpected token`, `cannot find module`, build fails | `knowledge/conventions.md` (import rules, file extensions) |
+| **Type** | TypeScript error (`TSxxxx`), `Type 'X' is not assignable to type 'Y'`, type mismatch | `knowledge/conventions.md` (type constraints, `unknown` vs `any`) |
+| **Runtime** | `TypeError`, `ReferenceError`, `Cannot read properties of undefined`, function crashes | `knowledge/error-patterns.md` (runtime error patterns) |
+| **Network / Gateway** | `ECONNREFUSED`, `fetch failed`, `502 Bad Gateway`, CORS error, WebSocket failure | `knowledge/error-patterns.md` (network/gateway section), `knowledge/architecture.md` (service communication), `knowledge/zai-sandbox.md` (gateway routing) |
+| **Database / Prisma** | Prisma error, `Unique constraint failed`, `PrismaClient not generated`, query error | `knowledge/error-patterns.md` (database section) |
 | **Git / Version Control** | `push rejected`, `fetch failed`, `merge conflict`, `diverged branches`, `non-fast-forward`, `detached HEAD` | This section (see Git diagnostic path below) |
 | **AI / SDK** | SDK invocation failure, rate limit, timeout, model error, image generation failure, `z-ai-web-dev-sdk` runtime error | See AI/SDK diagnostic path below |
 | **Other** | Error does not match any category above | Isolate minimal reproduction (see below) |
@@ -205,7 +205,7 @@ If this is the **3rd or more** back-to-back pivot on the same task (each trigger
 5. If the error is intermittent, look for race conditions or timing dependencies.
 
 **Network / Gateway:**
-1. Check if the URL uses an absolute `localhost` address — change to relative path with `?XTransformPort=`. Reference `knowledge/universal/architecture.md` for the service communication model and `knowledge/platform/zai-sandbox.md` for gateway routing rules.
+1. Check if the URL uses an absolute `localhost` address — change to relative path with `?XTransformPort=`. Reference `knowledge/architecture.md` for the service communication model and `knowledge/zai-sandbox.md` for gateway routing rules.
 2. Check if the target service is running — verify the mini-service or dev server is active.
 3. Check for port conflicts — ensure no two services use the same port.
 4. Check for CORS errors — these almost always indicate an absolute URL where a relative one is needed.
@@ -310,7 +310,7 @@ After applying a fix, full verification is required to confirm nothing else was 
 
 **Actions:**
 1. Return to the VERIFY phase (even if the error occurred during IMPLEMENT).
-2. Complete the full verification report (`procedure/templates/verification-report.md`):
+2. Complete the full verification report (inline in SKILL.md under `<template name="verification-report">`):
    - Run all automated checks (lint, type check, tests).
    - Verify all Traceability IDs, including those affected by the fix.
    - Re-test all edge cases.

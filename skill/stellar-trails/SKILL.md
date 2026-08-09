@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.4
+- **version**: 9.11.5
 
 ---
 
@@ -240,7 +240,8 @@ if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
 fi
 CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1)
 # E11: Write clawhub output to oracle file — Step 4 will cross-verify this.
-# LLM cannot fabricate this file without actually running clawhub (tool call recorded).
+# Note: the file itself is writable (see E11 Fabrication caveat above); the real
+# protection is Step 4's re-verification via fresh clawhub inspect calls, not the file.
 clawhub inspect stellar-trails --json > /tmp/st-clawhub-oracle.json
 LATEST=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json || echo "")
 if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current version from SKILL.md"
@@ -896,6 +897,50 @@ if [ "$PHASES_SUBAGENT" -gt 0 ]; then
 else
   echo "✓ Check 12: phases.md SADC step aligned with SKILL.md (no subagent dispatch, no crawl4ai/web-reader invocations)"
 fi
+```
+
+#### Check 13: Path integrity — all referenced files exist (NEW v9.11.5)
+```bash
+# Catches broken file references left behind when files/dirs are moved or deleted.
+# Verifies every (references|procedure|knowledge|constraints)/path/to/file.md mentioned
+# in any skill file actually exists on disk. Would have caught the v9.11.4 regression
+# where knowledge/universal/ and knowledge/platform/ subdirs were deleted but refs in
+# constraints/code-standards.md, knowledge/error-patterns.md, procedure/error-resolution.md
+# were not updated.
+python3 << 'PYEOF'
+import os, re, subprocess
+SKILL_DIR = 'skill/stellar-trails'
+# Collect all file-path references from all .md files in the skill
+ref_pattern = re.compile(r'(?:references|procedure|knowledge|constraints)/[a-zA-Z0-9_/-]+\.md')
+missing = []
+files_scanned = 0
+for root, dirs, files in os.walk(SKILL_DIR):
+    for fname in files:
+        if not fname.endswith('.md'):
+            continue
+        fpath = os.path.join(root, fname)
+        files_scanned += 1
+        with open(fpath) as f:
+            content = f.read()
+        for match in ref_pattern.finditer(content):
+            ref = match.group(0)
+            full = os.path.join(SKILL_DIR, ref)
+            if not os.path.exists(full):
+                # Allow references that are documentation of removal (e.g., "formerly in procedure/templates/")
+                # — but only if the line contains "formerly" or "removed" or "REMOVED"
+                line_start = content.rfind('\n', 0, match.start()) + 1
+                line_end = content.find('\n', match.end())
+                line = content[line_start:line_end if line_end > 0 else len(content)]
+                if any(kw in line.lower() for kw in ['formerly', 'removed', 'deprecated', 'was dead code']):
+                    continue
+                missing.append(f"  {fpath}: {ref}")
+if missing:
+    print(f"✗ Check 13 FAIL: {len(missing)} broken file reference(s):")
+    for m in missing:
+        print(m)
+else:
+    print(f"✓ Check 13: all file references valid ({files_scanned} files scanned)")
+PYEOF
 ```
 
 ### When to skip Pre-Push Local Verification
