@@ -15,7 +15,7 @@
 #   2. SIGHUP trap in bash (trap '' SIGHUP) — wrapper survives too
 #   3. Log to /tmp/st-devsh.log — post-mortem debugging
 #   4. PID file (.zscripts/st-devsh.pid, moved from /tmp/ in v9.11.4) — prevent duplicate instances
-#   5. Stale PID detection — clean up if process already dead
+#   5. Stale PID detection — clean up if process already dead (v9.11.6: verify /proc/cmdline)
 #   6. Rapid-crash backoff — if python3 exits within 2s, increase sleep
 #      (prevents spin loop on persistent failure, but NEVER gives up)
 #
@@ -48,30 +48,43 @@ log() {
   echo "[dev.sh] $*"
 }
 
-# --- PID file management (improvement: prevent duplicates) ---
-# If PID file exists and process alive → exit (already running)
-# If PID file exists but process dead → stale, clean up + continue
+# --- PID file management (v9.11.6: verify process identity, not just PID alive) ---
+# Bug 1 fix: kill -0 only checks if PID is alive, not whether it's dev.sh.
+# After container reboot, PID file persists (in .zscripts/ which survives reset),
+# but the PID number may be reused by a different process (boot service, etc).
+# dev.sh would false-positive "Already running" and exit without serving → 9-min outage.
+# Fix: verify /proc/$PID/cmdline contains 'dev.sh' before trusting it.
 if [ -f "$PID_FILE" ]; then
   OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
-  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-    log "Already running (PID $OLD_PID) — not starting"
-    exit 0
+  if [ -n "$OLD_PID" ] && [ -d "/proc/$OLD_PID" ]; then
+    OLD_CMDLINE=$(tr '\0' ' ' < "/proc/$OLD_PID/cmdline" 2>/dev/null)
+    if echo "$OLD_CMDLINE" | grep -q 'dev\.sh'; then
+      log "Already running (PID $OLD_PID, cmdline: $OLD_CMDLINE) — not starting"
+      exit 0
+    fi
+    log "PID $OLD_PID is not dev.sh (cmdline: $OLD_CMDLINE) — stale PID file, cleaning up"
+    rm -f "$PID_FILE"
+  else
+    log "Stale PID file (PID $OLD_PID not running) — cleaning up"
+    rm -f "$PID_FILE"
   fi
-  log "Stale PID file (PID $OLD_PID not running) — cleaning up"
-  rm -f "$PID_FILE"
 fi
 echo $$ > "$PID_FILE"
 
-# Clean PID on exit (any exit path)
-trap 'rm -f "$PID_FILE" 2>/dev/null' EXIT
+# Bug 2 fix: EXIT trap must only delete PID file if it contains our own PID ($$).
+# Original trap 'rm -f "$PID_FILE"' would delete the PID file on ANY exit,
+# including the "Already running" exit path above — a second dev.sh invocation
+# would delete the first one's PID file, breaking duplicate-detection.
+trap 'if [ -f "$PID_FILE" ] && [ "$(cat "$PID_FILE" 2>/dev/null)" = "$$" ]; then rm -f "$PID_FILE"; fi' EXIT
 
 # SIGHUP: terminal closed — DON'T exit, keep serving (improvement over v7.2.2)
 trap '' SIGHUP
 
-# --- Port guard (same as v7.2.2) ---
+# --- Port guard (same as v7.2.2, but v9.11.6: respect PID ownership) ---
 if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
   log "Port :$PORT already in use — not starting"
-  rm -f "$PID_FILE"
+  # Only delete PID file if it's ours (Bug 2 fix — same as EXIT trap)
+  if [ "$(cat "$PID_FILE" 2>/dev/null)" = "$$" ]; then rm -f "$PID_FILE"; fi
   exit 0
 fi
 

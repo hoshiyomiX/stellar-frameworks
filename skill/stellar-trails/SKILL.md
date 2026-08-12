@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.5
+- **version**: 9.11.6
 
 ---
 
@@ -300,8 +300,24 @@ mkdir -p "$ZSCRIPTS"
 [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
 [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
 echo "✓ Step 4b: .zscripts/ force-overridden with latest files"
-OLD_PID=$(ss -tlnp | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | head -1)
-if [ -n "$OLD_PID" ]; then kill "$OLD_PID"; sleep 1; echo "✓ Step 4c: old dev.sh (PID $OLD_PID) killed"; fi
+# Bug 3 fix (v9.11.6): kill bash SUPERVISOR via PID file, not python3 listener via ss.
+# ss -tlnp | grep ':3000' returns python3 (the listener), killing it triggers bash
+# supervisor to restart python3 with the OLD dev.sh still loaded — file reload fails.
+# Fix: read PID file to get bash supervisor PID, verify /proc/cmdline contains dev.sh, kill it.
+OLD_PID=$(cat "$ZSCRIPTS/st-devsh.pid" 2>/dev/null)
+if [ -n "$OLD_PID" ] && [ -d "/proc/$OLD_PID" ]; then
+  OLD_CMDLINE=$(tr '\0' ' ' < "/proc/$OLD_PID/cmdline" 2>/dev/null)
+  if echo "$OLD_CMDLINE" | grep -q 'dev\.sh'; then
+    kill "$OLD_PID"; sleep 1; echo "✓ Step 4c: old dev.sh supervisor (PID $OLD_PID) killed"
+  else
+    echo "⚠️ Step 4c: PID $OLD_PID in pidfile is not dev.sh (cmdline: $OLD_CMDLINE) — skipping kill"
+    # Fallback: kill python3 listener if port :3000 is still occupied
+    LISTENER_PID=$(ss -tlnp | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | head -1)
+    [ -n "$LISTENER_PID" ] && kill "$LISTENER_PID" && sleep 1 && echo "  fallback: killed python3 listener (PID $LISTENER_PID)"
+  fi
+else
+  echo "✓ Step 4c: no stale dev.sh PID file found — fresh start"
+fi
 DEV_SH="$ZSCRIPTS/dev.sh"
 if [ -f "$DEV_SH" ]; then ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) & sleep 1
   HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
