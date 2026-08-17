@@ -1,5 +1,190 @@
 # Changelog
 
+## [9.11.8] — 2026-08-17
+
+### Fixed
+- README.md: stale architecture diagram (referenced removed `procedure/templates/`, `procedure/decision-trees/`, `knowledge/platform/`, `knowledge/universal/`, `memory-template.md`). Updated to reflect current file structure.
+- README.md: stale version history table (stopped at v8.0.3). Added v9.0.0 through v9.11.7.
+- README.md: stale persistence model (referenced "Permanent Memory" — removed v9.1.0). Updated to current persistence model.
+- skill-card.md: stale features ("File-based Memory: Permanent Memory" — removed v9.1.0, "SADC subagent dispatched" — removed v9.1.0). Updated to current features.
+- skill-card.md: stale changelog URL (pointed to `skill/stellar-trails/CHANGELOG.md` but file is at repo root). Fixed to `CHANGELOG.md`.
+- evals.json: stale test case id 5 used 📍 emoji (changed to ☄️ in v9.10.4). Updated all phase marker patterns.
+- evals.json: stale test case id 7 tested "SADC subagent dispatched" (removed v9.1.0). Updated to test "SADC main agent researching inline" (v9.5.0+).
+- evals.json: stale notes mentioned "memory bash gate ran" (removed v9.1.0). Updated notes.
+- CHANGELOG.md: stopped at v8.0.0. Added v9.0.0 through v9.11.7 entries (35+ versions).
+- .checksums: SHA-256 hashes were stale (didn't match current files). Regenerated.
+
+### Added
+- evals.json: new test case id 8 "activation-enforcement-vectors-e7-e11" — verifies E7 hash token, E11 clawhub oracle, E9 persistent log, E10 line-number proof.
+- README.md: comprehensive glow up — badges, feature table, 13-check Pre-Push table, persistence model table, recent version history, links section.
+
+## [9.11.7] — 2026-08-12
+
+### Fixed
+- Bug 4: kill orphaned python3 listener after supervisor kill in Step 4c — without this, the killed bash supervisor's python3 child (reparented to PID 1) keeps :3000 occupied, causing new dev.sh to see port in use and exit.
+
+## [9.11.6] — 2026-08-09
+
+### Fixed
+- Bug 1 (dev.sh — P0, 9-min outage root cause): `kill -0` only checks if PID is alive, not whether it is dev.sh. After container reboot, PID file persists but PID number may be reused by boot service. Fix: verify `/proc/$PID/cmdline` contains `dev.sh`.
+- Bug 2 (dev.sh — P2): EXIT trap `rm -f "$PID_FILE"` fires on ALL exits, including "Already running" path — corrupts duplicate-detection. Fix: ownership check (only delete if `$$` == PID file content).
+- Bug 3 (SKILL.md Step 4 — P2): `ss -tlnp | grep :3000` returns python3 listener, not bash supervisor. Killing python3 triggers bash to restart python3 with OLD dev.sh still loaded. Fix: read PID file, verify `/proc/cmdline`, kill bash supervisor with fallback to ss-based kill.
+
+## [9.11.5] — 2026-08-09
+
+### Fixed
+- 11 re-audit findings: 1 P2 regression (E11 code comment), 7 P0 new drift (broken `knowledge/universal/` + `knowledge/platform/` refs), 3 P2 pre-existing (stale `procedure/templates/` + `procedure/decision-trees/` refs).
+
+### Added
+- Pre-Push Check 13: path integrity — scans all .md files for broken `(references|procedure|knowledge|constraints)/path/to/file.md` references. Excludes documentation-of-removal lines.
+
+## [9.11.4] — 2026-08-09
+
+### Fixed
+- 16 audit findings (4 P0 + 5 P1 + 4 P2 + 3 P3) from agent/subagent simulation audit.
+
+### Added
+- Pre-Push Check 10: index.html version matches SKILL.md.
+- Pre-Push Check 11: no duplicate knowledge files.
+- Pre-Push Check 12: phases.md ↔ SKILL.md SADC drift detection.
+- Worklog Rotation Policy: rotate at 100 entries.
+- E4 subagent exemption documentation.
+- E3 subagent unavailability documentation.
+- E7/E9/E11 fabrication + best-effort caveats.
+- Subagent toolset restriction documentation in zai-sandbox.md.
+- clawhub `--version` quirk documentation.
+- dev.sh PID file moved from `/tmp/` to `.zscripts/` (survives session reset).
+
+### Removed
+- 4 byte-identical duplicate knowledge files in `knowledge/platform/` + `knowledge/universal/` subdirs (leftover from pre-v9.10.3 path mismatch).
+- Deprecated `references/sadc-subagent-delegation.md`.
+- Stray `memory-template.md` (pre-v9.1.0 leftover).
+
+## [9.11.3] — 2026-08-07
+
+### Changed
+- Removed ALL `2>/dev/null` from SKILL.md — errors visible, skill must report abnormalities.
+
+## [9.11.2] — 2026-08-06
+
+### Fixed
+- Step 3 silent update failure: removed `2>/dev/null` from clawhub update line, added POST_VERSION verification with DRIFT DETECTED + FORCE UPDATE CONFIRMED messaging.
+
+## [9.11.1] — 2026-08-06
+
+### Added
+- Layered Memory Protocol (L0–L3) adapted from TencentDB-Agent-Memory:
+  - L0 Task: worklog.md (existing)
+  - L1 Pattern: knowledge/patterns.md (NEW)
+  - L2 Scenario: knowledge/scenarios.md (NEW, auto-triggered at ≥5 L1 entries per domain)
+  - L3 Profile: knowledge/user-profile.md (NEW, auto-triggered at ≥3 same-decision patterns)
+- Knowledge On-Demand Loading: Step 5 loads only relevant knowledge files per task type.
+
+## [9.11.0] — 2026-08-06
+
+### Added
+- scenarios.md created (L2 placeholder for Layered Memory Protocol).
+
+## [9.10.4] — 2026-08-06
+
+### Changed
+- Phase marker emoji 📍 → ☄️ (consistent with skill branding).
+
+## [9.10.3] — 2026-08-06
+
+### Fixed
+- Path mismatch: `knowledge/platform/zai-sandbox.md` referenced but file at `knowledge/zai-sandbox.md`.
+
+## [9.10.2] — 2026-08-06
+
+### Fixed
+- Markdown fence self-reference: literal ``` inside bash blocks caused odd fence count. Fix: hex-escape `\x60\x60\x60`.
+
+## [9.10.1] — 2026-08-06
+
+### Added
+- Auto Git Identity Setup in Step 1: detects PAT, fetches GitHub identity, configures git config + credentials + env vars.
+- Pre-Push Check 10: index.html version matches SKILL.md (implicit check formalized).
+
+### Fixed
+- index.html version stale at v9.9.1 while SKILL.md at v9.10.0.
+
+## [9.10.0] — 2026-08-06
+
+### Changed
+- dev.sh v9.0.0: improved from v7.2.2 base, explicitly reject v8.0.0 bugs (background python3+wait race, exit 0 on clean signal, MAX_RETRIES permanent exit).
+
+## [9.9.0] — 2026-08-04
+
+### Added
+- Git Identity Setup protocol: 4 layers (global config override + credentials re-create + env vars + verify) to fix Z User author bug.
+
+## [9.8.0] — 2026-08-04
+
+### Added
+- Implementation Discovery Protocol: classify discovered bugs as same-surface (fix-now) or different-surface (defer).
+
+## [9.7.0] — 2026-08-04
+
+### Added
+- Pre-Push Check 2: python3 -c mock execution.
+- Pre-Push Check 3: grep patterns return non-empty.
+- Pre-Push Check 4: banner version dynamic (not hardcoded).
+- Pre-Push Check 5: tag does not exist.
+- Pre-Push Check 6: ClawHub moderation state.
+- Pre-Push Check 9: post-push registry poll plan.
+
+## [9.6.0] — 2026-08-03
+
+### Added
+- GitHub Operations Protocol: 4 operations (PR checks, run list, failed logs, API queries) using curl + PAT (gh CLI not available in z.ai sandbox).
+
+## [9.5.0] — 2026-08-02
+
+### Added
+- Proximate Cause Triage: orisinil decision tree combining occams-razor + aana-task-scope-guardrail.
+- Inline Content Retrieval: curl + python3 stdlib, no external crawl4ai dependency.
+
+### Removed
+- `Skill(command="crawl4ai")` dependency from SADC section.
+
+## [9.4.0] — 2026-08-01
+
+### Added
+- 5 sandbox-native enforcement vectors (E7–E11): hash token gate, TodoWrite live marker, persistent activation log, line-number proof, clawhub oracle cross-check.
+
+## [9.3.0] — 2026-07-30
+
+### Added
+- E4 Pre-Tool-Call Gate: banner + 5 steps MUST run before any tool call.
+- E5 Anti-Rationalization clauses: 8 forbidden rationalizations for skipping activation.
+- E6 Escape Hatch: visible skip mechanism for ≥90% context pressure.
+- E2 Pre-DELIVER Self-Audit: 5 honest questions before delivery report.
+
+## [9.2.0] — 2026-07-28
+
+### Added
+- Pre-Push Local Verification: 4 checks (bash -n, markdown fences even, post-push plan, etc).
+- Implementation Discovery Protocol.
+
+## [9.1.0] — 2026-07-27
+
+### Removed
+- `memory/` directory protocol (dead code — worklog is sole continuity mechanism).
+- SADC subagent delegation (subagents cannot invoke Skill() in z.ai — main agent does inline).
+
+## [9.0.0] — 2026-07-26
+
+### Added
+- Three enforcement layers: E1 phase machine, E2 mandatory prints, E3 preferences dialog.
+- Inline templates (problem-spec, implementation-plan, verification-report, incident-report) — formerly in `procedure/templates/`.
+
+### Removed
+- `procedure/templates/` directory (templates inlined into SKILL.md).
+- `procedure/decision-trees/` directory (consolidated into `procedure/error-resolution.md`).
+
+
+
 ## [8.0.0] — 2026-06-27
 
 ### Changed — Major step restructure: 9 steps → 5, no silent failures
