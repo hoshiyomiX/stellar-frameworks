@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.7
+- **version**: 9.11.8
 
 ---
 

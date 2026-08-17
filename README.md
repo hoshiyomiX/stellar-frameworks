@@ -1,14 +1,47 @@
 <div align="center">
 
-<img src="chibi.svg" alt="Stellar Trails mascot" width="180">
+<img src="skill/stellar-trails/chibi.svg" alt="Stellar Trails mascot" width="180">
 
 # Stellar Trails
 
-A structured six-phase workflow for LLM agents — traceability IDs, entry/exit gates, scope commitment, and adaptive complexity. No shell execution, pure markdown data.
+**A structured six-phase workflow framework for LLM agents on the z.ai platform.**
+
+Traceability IDs · Entry/Exit Gates · Scope Commitment · Adaptive Complexity · 5 Sandbox-Native Enforcement Vectors · Layered Memory Protocol
+
+[![Version](https://img.shields.io/badge/version-9.11.8-blue.svg)](https://github.com/hoshiyomiX/stellar-trails/releases)
+[![License](https://img.shields.io/badge/license-MIT--0-green.svg)](LICENSE)
+[![ClawHub](https://img.shields.io/badge/clawhub-stellar--trails-orange.svg)](https://clawhub.ai/hoshiyomix/stellar-trails)
 
 </div>
 
-## Quick Start
+---
+
+## ✨ What It Does
+
+Stellar Trails enforces a disciplined six-phase workflow on every task — coding, document creation, data processing, audit/diagnosis, or even simple questions. The framework wraps around the LLM's natural reasoning to produce verifiable artifacts instead of trusting the LLM to "remember" to follow a process.
+
+```
+IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER
+  ↑                                        │
+  └──── Recovery ◄───────────────────┘
+```
+
+| Feature | Description |
+|---------|-------------|
+| **Six-Phase Workflow** | Every task passes through IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER — no phase skipping |
+| **Traceability IDs** | IMPL-001, IMPL-002... chain through every phase — gaps are visible |
+| **Adaptive Complexity** | Minimal / Simple / Standard / Complex tiers — ceremony scales, phases don't skip |
+| **5 Enforcement Vectors (E7–E11)** | Hash token gate, TodoWrite live marker, persistent activation log, line-number proof, clawhub oracle cross-check |
+| **Pre-Push Verification (13 checks)** | bash -n, python3 mock, grep patterns, banner version, tag collision, moderation state, markdown fences, index.html version match, no duplicate knowledge files, SADC drift, path integrity |
+| **Layered Memory Protocol (L0–L3)** | Worklog (L0) + patterns (L1) + scenarios (L2) + user-profile (L3) — adapted from TencentDB-Agent-Memory |
+| **Proximate Cause Triage** | Orisinil decision tree to prevent GLM-5.2's tendency to rabbit-hole into deep causal chains |
+| **Inline Content Retrieval** | curl + python3 stdlib — no external crawl4ai dependency |
+| **Auto Git Identity Setup** | Detects PAT, fetches GitHub identity, configures git config + credentials + env vars |
+| **Pure Markdown by Design** | No shell execution in Skill() invoke — pure markdown data that the LLM reads and follows |
+
+---
+
+## 🚀 Quick Start
 
 ### Path A — ZAI Platform (recommended)
 
@@ -25,85 +58,156 @@ Skill(command="stellar-trails")
 ### Path B — Standalone (non-ZAI)
 
 ```bash
-curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /tmp/st.zip && unzip -q /tmp/st.zip -d /tmp/ && cp -a /tmp/stellar-trails /home/z/my-project/skills/ && mkdir -p /home/z/my-project/.zscripts && cp /tmp/stellar-trails/{chibi.svg,index.html,dev.sh} /home/z/my-project/.zscripts/ && chmod +x /home/z/my-project/.zscripts/dev.sh && rm -rf /tmp/stellar-trails /tmp/st.zip && echo "✓ installed"
+curl -sL https://github.com/hoshiyomiX/stellar-trails/releases/latest/download/stellar-trails.zip -o /tmp/st.zip && unzip -q /tmp/st.zip -d /tmp/ && cp -a /tmp/skill/stellar-trails /home/z/my-project/skills/ && mkdir -p /home/z/my-project/.zscripts && cp /home/z/my-project/skills/stellar-trails/{chibi.svg,index.html,dev.sh} /home/z/my-project/.zscripts/ && chmod +x /home/z/my-project/.zscripts/dev.sh && rm -rf /tmp/skill /tmp/st.zip && echo "✓ installed"
 ```
 
 For popup preview: `bash /home/z/my-project/.zscripts/dev.sh` (serves :3000 with no-cache headers).
 
-## Version History
+### Path C — ClawHub
+
+```bash
+clawhub install stellar-trails
+```
+
+---
+
+## 📦 What's Inside
+
+```
+stellar-trails/                          (repo root)
+├── .github/workflows/release.yml        # CI/CD: build zip + publish to ClawHub on tag push
+├── .checksums                           # SHA-256 verification manifest
+├── .githooks/pre-commit                 # Prevents commits on diverged branch
+├── .gitattributes + .gitignore          # Line-ending + ignore rules
+├── CHANGELOG.md                         # Full version history (v4.4.2 → v9.11.7)
+├── README.md                            # This file
+└── skill/stellar-trails/                # Git-tracked source of truth
+    ├── SKILL.md                          # Skill definition (activation + framework reference)
+    ├── dev.sh                            # Standalone no-cache HTTP server (popup preview)
+    ├── index.html                        # Landing page (minimalist, v9.5.0+)
+    ├── chibi.svg                         # Mascot (SVG, passes ClawHub text-file filter)
+    ├── skill-card.md                     # ClawHub skill card metadata
+    ├── watermark.md                      # Popup preview customization guide
+    ├── procedure/
+    │   ├── phases.md                     # 6-phase workflow definitions + gates
+    │   └── error-resolution.md           # Error decision tree + pivot assessment
+    ├── knowledge/                        # Layered Memory Protocol (L1–L3) + platform knowledge
+    │   ├── patterns.md                   # L1: reusable patterns from past tasks
+    │   ├── scenarios.md                  # L2: grouped patterns by domain
+    │   ├── user-profile.md               # L3: stable user preferences
+    │   ├── zai-sandbox.md                # Platform constraints + sandbox quirks
+    │   ├── architecture.md               # Runtime environment + directory layout
+    │   ├── conventions.md                # Universal coding conventions
+    │   └── error-patterns.md             # Common error patterns + fixes
+    ├── constraints/                     # Prescriptive coding standards
+    │   ├── code-standards.md             # Function standards, naming, max 50 lines/function
+    │   └── type-safety.md                 # TypeScript strict-mode rules
+    ├── evals/
+    │   └── evals.json                   # Programmatic eval assertions for transcript checking
+    └── references/
+        └── askuserquestion-gate.md      # Full 6-8 question template + skip conditions
+```
+
+---
+
+## 🏗️ Architecture
+
+### Activation Sequence (5 steps, every invoke)
+
+```
+Step 1  Refresh context + SSV              # Read SKILL.md, write E7 hash token
+Step 2  Start popup server                  # E7 gate check, copy dev.sh + index.html to .zscripts/
+Step 3  Auto-update via ClawHub            # E11 oracle, force update if drift detected
+Step 4  Verify files + restart dev.sh      # E11 cross-check, kill stale supervisor, sync zip
+Step 5  Load phases + classify              # E9 persistent log, determine tier + type + continuity
+```
+
+### Enforcement Vectors (E7–E11)
+
+| Vector | What it enforces | LLM can fake? |
+|--------|-------------------|---------------|
+| **E7** Hash Token Gate | Steps 2–5 cannot run without Step 1 | NO — token requires actual file read |
+| **E8** TodoWrite Live Marker | Steps visible in real-time UI | Partially — transitions are visible |
+| **E9** Persistent Activation Log | Cross-session audit trail | Partially — timestamps must be monotonic |
+| **E10** Line-Number Proof | Step 1 actually called Read | Partially — LLM knows line 19 |
+| **E11** Clawhub Oracle | Step 3 actually ran clawhub | NO — external binary output is ground truth |
+
+### Pre-Push Local Verification (13 checks)
+
+| # | Check | Catches |
+|---|-------|---------|
+| 1 | bash -n on all blocks | Syntax errors in bash code |
+| 2 | python3 -c mock execution | IndentationError, NameError in embedded python |
+| 3 | grep patterns return non-empty | Broken regex patterns |
+| 4 | Banner version dynamic | Hardcoded version in banner |
+| 5 | Tag does not exist | Duplicate tag pushes |
+| 6 | ClawHub moderation state | Publish to hidden skill |
+| 7 | YAML structure valid | Workflow syntax errors |
+| 8 | Markdown fences even | Orphan code blocks |
+| 9 | Post-push registry poll plan | Silent publish failures |
+| 10 | index.html version matches SKILL.md | Version drift between files |
+| 11 | No duplicate knowledge files | Stray subdirs from path-mismatch fixes |
+| 12 | phases.md ↔ SKILL.md SADC drift | Protocol drift between files |
+| 13 | Path integrity (all refs exist) | Broken cross-file references |
+
+---
+
+## 💾 Persistence Model (ZAI Platform)
+
+| Layer | Mechanism | Survives reset? |
+|-------|-----------|-----------------|
+| `/home/user_skills/stellar-trails.zip` | Persistent mount | ✓ |
+| `/home/user_skills/.stellar-trails.usermark` | "Skill approved" marker | ✓ |
+| `/home/user_skills/.st-activation-log` | E9 persistent activation log | ✓ (world-writable — best-effort audit) |
+| ZAI service auto-extract | Extracts zip to `skills/stellar-trails/` at session start | ✓ (re-extracted every session) |
+| `/home/z/my-project/skills/stellar-trails/` | Working copy (from zip) | ✓ (re-extracted) |
+| `/home/z/my-project/.zscripts/` | Popup server assets (dev.sh + index.html + chibi.svg) | ✓ (force-overridden in Step 4) |
+| `/tmp/st-active` | E7 hash token (session-scoped) | ✗ (wiped on reset) |
+| `/tmp/st-clawhub-oracle.json` | E11 oracle cache | ✗ (wiped on reset) |
+
+---
+
+## 📋 Version History (recent)
 
 | Version | Date | Summary |
 |---------|------|---------|
-| 8.0.3 | 2026-06-27 | Major restructure: 9 steps → 5. Popup server moved to Step 2. Verify+sync merged to Step 4. Load+classify merged to Step 5. Confirm+enter deleted. Every step prints ✓/✗ status — no silent failures. |
-| 7.9.4 | 2026-06-27 | Step 2 re-read SKILL.md from disk after clawhub update. |
-| 7.9.2 | 2026-06-27 | Fix Step 2 — add --force to clawhub update. |
-| 7.8.1 | 2026-06-27 | skill-creator audit fixes: P0 typo + refactor, P1 Worked Example, P2 evals + topic tags. |
-| 7.8.0 | 2026-06-27 | AskUserQuestion gate + SADC subagent delegation. Closes 83% platform underusage gap. |
-| 7.7.5 | 2026-06-27 | Banner → vertical checklist + mandatory execution + print mandate (4 places). |
-| 7.7.4 | 2026-06-27 | Refactor activation banner layout to tree-style format (├─ / │  ├─ / └─). |
-| 7.7.3 | 2026-06-27 | Added 9-step sequence to activation banner (top + Step 8 confirm). |
-| 7.7.2 | 2026-06-27 | Corrected frequency guidance — all 9 activation steps run on every Skill() invoke. |
-| 7.7.1 | 2026-06-27 | Restructure activation: merged Step 5 (Verify chibi.svg) into Step 4. Added new Step 5: Sync persistent zip. |
-| 7.7.0 | 2026-06-27 | Fix 8 bugs causing LLM to skip activation steps. Replaced stale v7.5.0 zip with v7.6.2 zip. Rewrote SKILL.md activation section: added Step 1 (refresh context), imperative framing, expected-output checkpoints, removed dismissive parentheticals, split comment-heavy blocks, added session-frequency guidance. |
-| 7.6.2 | 2026-06-27 | Language audit — fixed codeswitching + buzzword + hyperbole. Step numbering cleaned up: 0.5/1/1.5/1.6/2/3/4/5 → 1/2/3/4/5/6/7/8. |
-| 7.6.1 | 2026-06-27 | Fix popup mascot cropping — .mascot CSS had border-radius:50% + object-fit:cover + forced square. Replaced with width:200px;height:auto. SVG renders at native aspect ratio, no cropping. |
-| 7.6.0 | 2026-06-27 | BREAKING — mascot format change: chibi.png (binary, 1.2 MB) → chibi.svg (text SVG, 757 KB). Solves ClawHub binary-file-filter issue at the source. SVG passes registry filter natively. |
-| 7.5.2 | 2026-06-26 | Defensive Step 1.6 — auto-restores chibi.png from local repo clone if missing after clawhub update (ClawHub publish filter workaround). |
-| 7.5.1 | 2026-06-26 | Patch — register chibi.png in .checksums manifest (root-cause fix for mascot missing in popup preview). Audit: 6 documentation leftovers cleaned. |
-| 7.2.0 | 2026-06-21 | boot.sh deleted (8 red flag patterns), replaced with dev.sh standalone (60 lines, no-cache HTTP server) |
-| 7.1.4 | 2026-06-21 | New landing page (cosmic glassmorphism + phase flow diagram), dead code cleanup (386 lines removed) |
-| 7.1.3 | 2026-06-20 | One-liner install (agent-friendly, no shell execution) |
-| 7.1.2 | 2026-06-20 | Stable asset name `stellar-trails.zip` for releases/latest/download URL |
-| 7.1.1 | 2026-06-20 | CI/CD GitHub Actions workflow + simplified install |
-| 7.1.0 | 2026-06-20 | Stateless skill — removed bash boot.sh bootstrap from SKILL.md |
-| 7.0.0 | 2026-06-19 | Rebrand stellar-frameworks → stellar-trails |
-| 6.0.0 | 2026-05-25 | Version reset, chibi mascot, force-sync, co-location, activation fallback |
+| **9.11.7** | 2026-08-12 | Bug 4 fix: kill orphaned python3 listener after supervisor kill in Step 4c |
+| **9.11.6** | 2026-08-09 | Fix 3 dev.sh bugs from cross-sandbox diagnosis (PID collision, EXIT trap, Step 4 kill target) |
+| **9.11.5** | 2026-08-09 | Fix 11 re-audit findings + add Pre-Push Check 13 (path integrity) |
+| **9.11.4** | 2026-08-09 | Implement 16 audit findings (4 P0 + 5 P1 + 4 P2 + 3 P3) + Check 11/12 |
+| **9.11.3** | 2026-08-07 | Remove all `2>/dev/null` — errors visible, skill must report abnormalities |
+| **9.11.2** | 2026-08-06 | Step 3 silent update failure fix — removed `2>/dev/null`, added POST_VERSION verification |
+| **9.11.1** | 2026-08-06 | Layered Memory Protocol (L0–L3) adapted from TencentDB-Agent-Memory |
+| **9.11.0** | 2026-08-06 | scenarios.md created (L2 placeholder for LMP) |
+| **9.10.4** | 2026-08-06 | Emoji 📍 → ☄️ for phase markers |
+| **9.10.1** | 2026-08-06 | Auto Git Identity Setup in Step 1 + index.html version match Check 10 |
+| **9.10.0** | 2026-08-06 | dev.sh v9.0.0 — improved from v7.2.2, reject v8.0.0 bugs |
+| **9.5.0** | 2026-08-04 | Proximate Cause Triage + Inline Content Retrieval (orsinil features) |
+| **9.0.0** | 2026-07-26 | Three enforcement layers (E1–E3) + inline templates |
+| **8.0.0** | 2026-06-27 | Major restructure: 9 steps → 5, no silent failures |
 
-See [CHANGELOG.md](CHANGELOG.md) for full history.
+See [CHANGELOG.md](CHANGELOG.md) for full history (v4.4.2 → v9.11.7).
 
-## Architecture
+---
 
-```
-stellar-trails/                   (repo root)
-├── .github/workflows/release.yml # CI/CD: build zip + create release on tag push
-├── .checksums                    # SHA-256 verification (21 files)
-├── .gitignore
-├── README.md                     # Root README (this file's parent)
-└── skill/stellar-trails/         # Git-tracked source of truth
-    ├── SKILL.md                  # Skill definition (activation + framework reference)
-    ├── dev.sh                    # Standalone no-cache HTTP server (60 lines, popup preview)
-    ├── index.html                # Landing page (minimalist, v7.5.0+)
-    ├── chibi.svg                 # Mascot (SVG, passes ClawHub text-file filter)
-    ├── memory-template.md        # Memory system templates & storage rules
-    ├── procedure/
-    │   ├── phases.md             # 6-phase workflow definitions + gates
-    │   ├── templates/            # Output templates (problem-spec, implementation-plan, incident-report, verification-report)
-    │   └── decision-trees/       # Error resolution + pivot assessment
-    ├── knowledge/
-    │   ├── platform/             # Z.ai sandbox constraints
-    │   └── universal/            # Architecture, conventions, error patterns
-    ├── constraints/              # Code standards + type safety rules
-    ├── CHANGELOG.md              # Full version history
-    └── README.md                 # This file
-```
+## 🔗 Links
 
-## What's Inside
+- **ClawHub**: https://clawhub.ai/hoshiyomix/stellar-trails
+- **GitHub**: https://github.com/hoshiyomiX/stellar-trails
+- **Releases**: https://github.com/hoshiyomiX/stellar-trails/releases
+- **Issues**: https://github.com/hoshiyomiX/stellar-trails/issues
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
-- **Workflow Phases**: IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER (with error recovery loop)
-- **Traceability IDs**: IMPL-001, IMPL-002... chain through every phase
-- **Adaptive Complexity**: Minimal, Simple, Standard, Complex tiers
-- **Source State Verification (SSV)**: git fetch before analysis
-- **Source Availability & Documentation Check (SADC)**: research before planning
-- **File-based Memory**: evergreen + dated files, bounded budget
-- **Error Decision Tree**: 5-step capture → classify → identify → fix → re-verify
-- **Pure Markdown by Design**: no shell execution in Skill() invoke, pure markdown data
+---
 
-## Persistence Model (ZAI Platform)
+## 📄 License
 
-| Layer | Mechanism | Survives reset? |
-|---|---|---|
-| `/home/user_skills/stellar-trails.zip` | PolarFS persistent mount | ✓ |
-| ZAI service auto-extract | `/app/main.py` extracts zip to `skills/stellar-trails/` at session start | ✓ (re-extracted every session) |
-| `.stellar-trails.usermark` | Marker "skill approved" in PolarFS | ✓ |
+MIT-0 (Free to use, modify, and redistribute. No attribution required.)
 
-No shell execution in Skill() invoke. No `.zscripts/` persistent backup. No `~/.stellar-trails.log`. Pure markdown data.
+---
+
+<div align="center">
+
+<sub>Built with ☄️ Stellar Trails — six-phase workflow framework for LLM agents</sub>
+
+</div>
