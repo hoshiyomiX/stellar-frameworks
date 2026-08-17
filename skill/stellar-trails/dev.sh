@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-trails dev server v9.0.0 — improved from v7.2.2 base
+# stellar-trails dev server v9.11.7 — improved from v7.2.2 base
 #
 # Serves /home/z/my-project/.zscripts/ on port :3000 with Cache-Control: no-store
 # headers (bypass browser heuristic caching).
@@ -18,6 +18,11 @@
 #   5. Stale PID detection — clean up if process already dead (v9.11.6: verify /proc/cmdline)
 #   6. Rapid-crash backoff — if python3 exits within 2s, increase sleep
 #      (prevents spin loop on persistent failure, but NEVER gives up)
+#   7. Orphaned python3 reclaim (v9.11.7 Bug 4 fix) — when port :3000 is in use,
+#      if the listener is python3 (orphaned child of a previously-killed supervisor),
+#      kill it and reclaim the port instead of exiting. Fixes the regression where
+#      v9.11.6's "kill bash supervisor" (Bug 3 fix) left python3 orphaned and
+#      blocked all subsequent dev.sh starts.
 #
 # Explicitly REJECTED from v8.0.0 (caused degraded behavior):
 #   ❌ Background python3 + wait (race condition on SIGHUP)
@@ -80,12 +85,49 @@ trap 'if [ -f "$PID_FILE" ] && [ "$(cat "$PID_FILE" 2>/dev/null)" = "$$" ]; then
 # SIGHUP: terminal closed — DON'T exit, keep serving (improvement over v7.2.2)
 trap '' SIGHUP
 
-# --- Port guard (same as v7.2.2, but v9.11.6: respect PID ownership) ---
+# --- Port guard (v9.11.7 Bug 4 fix: kill orphaned python3 listener, don't just exit) ---
+# Bug 4 root cause: v9.11.6's Bug 3 fix kills the bash supervisor via PID file
+# but leaves the python3 child (running serve_forever in foreground) orphaned —
+# it gets reparented to PID 1 and keeps :3000 occupied. The next dev.sh start
+# (Step 4d, /start.sh, session reset) sees :3000 in use → exits → no supervisor
+# ever starts → no crash recovery for python3.
+#
+# Fix: when :3000 is in use, identify the listener. If it's python3 (our orphaned
+# child), kill it (SIGTERM → 0.2s×5 retry → SIGKILL fallback) and reclaim the port.
+# If it's a non-python3 process (legitimate other service), exit gracefully.
 if command -v ss >/dev/null 2>&1 && ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
-  log "Port :$PORT already in use — not starting"
-  # Only delete PID file if it's ours (Bug 2 fix — same as EXIT trap)
-  if [ "$(cat "$PID_FILE" 2>/dev/null)" = "$$" ]; then rm -f "$PID_FILE"; fi
-  exit 0
+  LISTENER_PID=$(ss -tlnp 2>/dev/null | grep ":$PORT " | grep -oP 'pid=\K[0-9]+' | head -1)
+  LISTENER_NAME=""
+  if [ -n "$LISTENER_PID" ] && [ -d "/proc/$LISTENER_PID" ]; then
+    LISTENER_NAME=$(cat "/proc/$LISTENER_PID/comm" 2>/dev/null || echo "")
+  fi
+
+  if [ "$LISTENER_NAME" = "python3" ] || [ "$LISTENER_NAME" = "python" ]; then
+    log "Port :$PORT in use by orphaned python3 (PID $LISTENER_PID) — killing and reclaiming"
+    kill "$LISTENER_PID" 2>/dev/null || true
+    # Wait up to 1s for graceful exit (5 × 0.2s)
+    for _ in 1 2 3 4 5; do
+      ss -tlnp 2>/dev/null | grep -q ":$PORT " || break
+      sleep 0.2
+    done
+    # Still alive → SIGKILL
+    if ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
+      log "Listener PID $LISTENER_PID did not die on SIGTERM — sending SIGKILL"
+      kill -9 "$LISTENER_PID" 2>/dev/null || true
+      sleep 1
+    fi
+    # Verify port is now free; if not, exit (don't spin forever)
+    if ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
+      log "Port :$PORT STILL in use after SIGKILL — cannot reclaim, exiting"
+      if [ "$(cat "$PID_FILE" 2>/dev/null)" = "$$" ]; then rm -f "$PID_FILE"; fi
+      exit 0
+    fi
+    log "Port :$PORT reclaimed — proceeding with start"
+  else
+    log "Port :$PORT in use by non-python3 process (PID ${LISTENER_PID:-?}, name: ${LISTENER_NAME:-unknown}) — not starting"
+    if [ "$(cat "$PID_FILE" 2>/dev/null)" = "$$" ]; then rm -f "$PID_FILE"; fi
+    exit 0
+  fi
 fi
 
 log "Serving $ZSCRIPTS_DIR on :$PORT with Cache-Control: no-store (v9.0.0 — improved v7.2.2)"

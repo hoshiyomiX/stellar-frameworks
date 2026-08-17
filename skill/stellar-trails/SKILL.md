@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.6
+- **version**: 9.11.7
 
 ---
 
@@ -304,11 +304,28 @@ echo "✓ Step 4b: .zscripts/ force-overridden with latest files"
 # ss -tlnp | grep ':3000' returns python3 (the listener), killing it triggers bash
 # supervisor to restart python3 with the OLD dev.sh still loaded — file reload fails.
 # Fix: read PID file to get bash supervisor PID, verify /proc/cmdline contains dev.sh, kill it.
+#
+# Bug 4 fix (v9.11.7): killing bash supervisor orphans its python3 child (reparented to
+# PID 1) which keeps :3000 occupied → Step 4d's new dev.sh sees port in use → exits →
+# no supervisor ever starts. Fix: AFTER killing bash supervisor, also kill the orphaned
+# python3 listener on :3000 so Step 4d starts cleanly.
 OLD_PID=$(cat "$ZSCRIPTS/st-devsh.pid" 2>/dev/null)
 if [ -n "$OLD_PID" ] && [ -d "/proc/$OLD_PID" ]; then
   OLD_CMDLINE=$(tr '\0' ' ' < "/proc/$OLD_PID/cmdline" 2>/dev/null)
   if echo "$OLD_CMDLINE" | grep -q 'dev\.sh'; then
     kill "$OLD_PID"; sleep 1; echo "✓ Step 4c: old dev.sh supervisor (PID $OLD_PID) killed"
+    # Bug 4 fix: also kill orphaned python3 listener left by the killed supervisor
+    LISTENER_PID=$(ss -tlnp 2>/dev/null | grep ':3000 ' | grep -oP 'pid=\K[0-9]+' | head -1)
+    if [ -n "$LISTENER_PID" ]; then
+      kill "$LISTENER_PID" 2>/dev/null || true
+      sleep 1
+      # Force-kill if still alive (uninterruptible listener)
+      if ss -tlnp 2>/dev/null | grep -q ':3000 '; then
+        kill -9 "$LISTENER_PID" 2>/dev/null || true
+        sleep 1
+      fi
+      echo "  Bug 4 fix: killed orphaned python3 listener (PID $LISTENER_PID) left by supervisor"
+    fi
   else
     echo "⚠️ Step 4c: PID $OLD_PID in pidfile is not dev.sh (cmdline: $OLD_CMDLINE) — skipping kill"
     # Fallback: kill python3 listener if port :3000 is still occupied
