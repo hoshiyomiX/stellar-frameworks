@@ -8,7 +8,7 @@
 
 Traceability IDs · Entry/Exit Gates · Scope Commitment · Adaptive Complexity · 5 Sandbox-Native Enforcement Vectors · Layered Memory Protocol
 
-[![Version](https://img.shields.io/badge/version-9.13.1-blue.svg)](https://github.com/hoshiyomiX/stellar-trails/releases)
+[![Version](https://img.shields.io/badge/version-9.13.2-blue.svg)](https://github.com/hoshiyomiX/stellar-trails/releases)
 [![License](https://img.shields.io/badge/license-MIT--0-green.svg)](LICENSE)
 [![ClawHub](https://img.shields.io/badge/clawhub-stellar--trails-orange.svg)](https://clawhub.ai/hoshiyomix/stellar-trails)
 

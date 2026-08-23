@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.13.1
+- **version**: 9.13.2
 
 ---
 
@@ -167,6 +167,16 @@ Step 3 runs `clawhub inspect` — output is ground truth from an external binary
 **Step 1 — Refresh context + SSV**: Re-read `/home/z/my-project/skills/stellar-trails/SKILL.md` from disk using the Read tool. Do not trust cached context — the on-disk version is source of truth. If task involves a git repo, run SSV. **E7 (hash token) and E10 (line-number proof) are written by this step** — subsequent steps verify the token to enforce that Step 1 actually ran.
 
 ```bash
+# v9.13.2 FIX: Banner is printed BY BASH, not by LLM text before bash.
+# Root cause of E4 violations: banner was text the LLM was supposed to print
+# BEFORE running Step 1 bash. But the LLM often skips it and goes straight to
+# bash. Fix: embed the banner echo as the FIRST line of Step 1 bash itself.
+# This way, the banner is ALWAYS printed when Step 1 runs — the LLM cannot skip it.
+_ST_VER=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1)
+echo "☄️ STELLAR TRAILS · v${_ST_VER} · ACTIVE"
+echo "├─ Phase: IDLE → SPECIFY"
+echo "├─ Complexity: [tier] | Task Type: [type] | Continuation: [NEW / YES]"
+echo "└─ Activation checklist (1–5, every invoke) — executing:"
 # SSV only runs if the skill has its own git repo at $HOME/.stellar-trails-repo/.
 # In the z.ai sandbox this directory usually does not exist (skill is installed
 # via clawhub, not git clone), so SSV is skipped gracefully. Running bare
