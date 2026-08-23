@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.9
+- **version**: 9.12.0
 
 ---
 
@@ -172,7 +172,7 @@ if [ -d "$HOME/.stellar-trails-repo/.git" ]; then
   git -C "$HOME/.stellar-trails-repo" fetch origin --quiet
   BRANCH=$(git -C "$HOME/.stellar-trails-repo" branch --show-current || echo main)
   BEHIND=$(git -C "$HOME/.stellar-trails-repo" rev-list --count HEAD..origin/$BRANCH)
-  if [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ]; then echo "✗ Step 1 FAILED: skill repo is $BEHIND commits behind origin — run git -C $HOME/.stellar-trails-repo pull"
+  if [ -n "$BEHIND" ] && [ "$BEHIND" -gt 0 ]; then echo "✗ Step 1 FAILED: skill repo is $BEHIND commits behind origin — run git -C $HOME/.stellar-trails-repo pull"; exit 1
   else echo "✓ Step 1: context refreshed + SSV passed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md || echo unknown))"; fi
 else
   echo "✓ Step 1: context refreshed (v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md || echo unknown)) — SSV skipped (no skill git repo)"
@@ -223,7 +223,7 @@ DEV_SH="$ZSCRIPTS/dev.sh"; [ -f "$DEV_SH" ] && ! ss -tlnp | grep -q ':3000 ' && 
 sleep 1
 HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
 MASCOT=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chibi.svg)
-if [ "$HTTP" = "200" ]; then echo "✓ Step 2: popup server running on :3000 (HTTP $HTTP, mascot $MASCOT)"; else echo "✗ Step 2 FAILED: popup server not responding (HTTP $HTTP)"; fi
+if [ "$HTTP" = "200" ]; then echo "✓ Step 2: popup server running on :3000 (HTTP $HTTP, mascot $MASCOT)"; else echo "✗ Step 2 FAILED: popup server not responding (HTTP $HTTP)"; exit 1; fi
 ```
 
 **z.ai sandbox note**: The popup server runs on `localhost:3000` inside the sandbox, but z.ai does NOT expose raw ports to the user's browser. The popup is only visible through the z.ai preview URL pattern: `https://preview-<bot-id>.space-z.ai/`. If the sandbox exposes a preview panel, the popup appears there; otherwise the popup runs but is invisible to the user (activation still succeeds — the popup is decorative, not functional). See `knowledge/zai-sandbox.md` for details.
@@ -244,8 +244,8 @@ CURRENT=$(grep -oP '^- \*\*version\*\*:\s*\K[0-9]+\.[0-9]+\.[0-9]+' /home/z/my-p
 # protection is Step 4's re-verification via fresh clawhub inspect calls, not the file.
 clawhub inspect stellar-trails --json > /tmp/st-clawhub-oracle.json
 LATEST=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json || echo "")
-if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current version from SKILL.md"
-elif [ -z "$LATEST" ]; then echo "✗ Step 3 FAILED: could not reach ClawHub registry (network down?)"
+if [ -z "$CURRENT" ]; then echo "✗ Step 3 FAILED: could not read current version from SKILL.md"; exit 1
+elif [ -z "$LATEST" ]; then echo "✗ Step 3 FAILED: could not reach ClawHub registry (network down?)"; exit 1
 elif [ "$CURRENT" = "$LATEST" ]; then echo "✓ Step 3: up to date (v$CURRENT) — E11 oracle: $(stat -c%s /tmp/st-clawhub-oracle.json) bytes"
 else
   echo "⚠️ Step 3: DRIFT DETECTED — local v$CURRENT vs registry v$LATEST — FORCE UPDATING..."
@@ -294,7 +294,7 @@ echo "  E11 oracle cross-check: registry latest = v${ORACLE_VERSION:-<parse fail
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"; USER_SKILLS_DIR="/home/user_skills"; ZSCRIPTS="/home/z/my-project/.zscripts"
 FILES_OK="yes"
 for f in SKILL.md procedure/phases.md dev.sh index.html chibi.svg; do [ ! -f "$SKILL_DIR/$f" ] && echo "✗ Step 4 WARNING: missing $f" && FILES_OK="no"; done
-if [ "$FILES_OK" = "yes" ]; then echo "✓ Step 4a: all skill files present"; else echo "✗ Step 4a FAILED: some files missing — graceful degradation"; fi
+if [ "$FILES_OK" = "yes" ]; then echo "✓ Step 4a: all skill files present"; else echo "✗ Step 4a FAILED: some files missing — graceful degradation"; exit 1; fi
 mkdir -p "$ZSCRIPTS"
 # v9.11.9: .zscripts/dev.sh is now git-tracked (canonical runtime source).
 # Step 4b syncs skill/stellar-trails/dev.sh → .zscripts/dev.sh to keep both in sync.
@@ -341,9 +341,9 @@ fi
 DEV_SH="$ZSCRIPTS/dev.sh"
 if [ -f "$DEV_SH" ]; then ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & ) & sleep 1
   HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
-  if [ "$HTTP" = "200" ]; then echo "✓ Step 4d: dev.sh restarted on :3000 (HTTP $HTTP)"; else echo "✗ Step 4d FAILED: dev.sh restart failed (HTTP $HTTP)"; fi
-else echo "✗ Step 4d FAILED: dev.sh not found at $DEV_SH"; fi
-if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Step 4e: persistent zip synced" || echo "✗ Step 4e FAILED: zip sync error"; else echo "✗ Step 4e FAILED: directory not found"; fi
+  if [ "$HTTP" = "200" ]; then echo "✓ Step 4d: dev.sh restarted on :3000 (HTTP $HTTP)"; else echo "✗ Step 4d FAILED: dev.sh restart failed (HTTP $HTTP)"; exit 1; fi
+else echo "✗ Step 4d FAILED: dev.sh not found at $DEV_SH"; exit 1; fi
+if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Step 4e: persistent zip synced" || { echo "✗ Step 4e FAILED: zip sync error"; exit 1; }; else echo "✗ Step 4e FAILED: directory not found"; exit 1; fi
 ```
 
 **Step 5 — Load phases + classify**: Read `procedure/phases.md` now. Then determine complexity tier (Minimal/Simple/Standard/Complex), task type (Coding/Document/Visualization/Data Processing/Non-Coding), and continuity (NEW or YES — see Session Continuity below). **E7 gate + E9 persistent log** — writes activation record to `/home/user_skills/.st-activation-log` for cross-session audit.
@@ -367,7 +367,74 @@ echo "✓ Step 5: phases loaded + classified: [tier]/[type]/[NEW|YES] — E9 log
 
 **Mandatory TodoWrite protocol (E8)**: Before Step 1 bash, call `TodoWrite` with 5 items (Step 1 through Step 5), all status `pending`. Before each Step N bash, mark Step N `in_progress`. After each Step N bash succeeds, mark Step N `completed`. User sees the live checklist transition in real-time — this is visibility enforcement that text cannot provide.
 
-After Step 5: Begin SPECIFY (or IMPLEMENT if continuation detected).
+### E12 — Activation Retry Protocol (NEW v9.12.0)
+
+**Problem this solves**: Previous versions had Step bash blocks that only `exit 1` on GATE failures (E7 token mismatch). Step-specific failures (HTTP != 200, clawhub unreachable, dev.sh restart failed) just echoed `✗ Step N FAILED` and exited 0 — the LLM couldn't detect failure from exit code alone, and there was no retry mandate. The LLM would often proceed to the next step despite a failure, or silently skip the failed step.
+
+**Solution**: Three changes:
+1. **Print stdout mandate**: Each Step's bash block stdout MUST be printed verbatim in the transcript — no summarizing, suppressing, or paraphrasing. The user must see the raw `✓` or `✗` output.
+2. **Exit code enforcement**: Each Step bash block must `exit 1` on ANY failure (not just GATE failures). The Bash tool reports non-zero exit code → LLM detects failure → triggers retry.
+3. **Retry-until-green**: If Step N fails (exit 1), the LLM MUST:
+   - Print the error output (already captured by Bash tool)
+   - Diagnose the cause (read the ✗ message, identify root cause)
+   - Apply a fix (e.g., re-read SKILL.md, restart dev.sh, force clawhub update)
+   - Re-run Step N
+   - Repeat until ✓ (max 3 retries per step)
+   - If still failing after 3 retries → use E6 Escape Hatch or ask user for guidance
+
+**Retry decision tree**:
+```
+Step N bash exits with code:
+  0 (success)  → print ✓ Step N output → proceed to Step N+1
+  1 (failure)  → print ✗ Step N output → diagnose → fix → re-run Step N
+                   ↓
+                   retry 1: re-run Step N
+                     ├─ exit 0 → ✓ proceed
+                     └─ exit 1 → retry 2: re-run Step N
+                                    ├─ exit 0 → ✓ proceed
+                                    └─ exit 1 → retry 3: re-run Step N
+                                                   ├─ exit 0 → ✓ proceed
+                                                   └─ exit 1 → ⚠️ MAX RETRIES EXCEEDED
+                                                      → E6 Escape Hatch or ask user
+```
+
+**Common failure fixes** (apply before retry):
+| Step | Failure | Fix |
+|------|---------|-----|
+| 1 | SKILL.md not found | `clawhub --no-input update stellar-trails --force` to restore |
+| 2 | HTTP != 200 (popup not responding) | Kill stale dev.sh: `kill $(cat /home/z/my-project/.zscripts/st-devsh.pid)` + re-run Step 2 |
+| 3 | clawhub unreachable (network) | Retry Step 3 after 5s — network may be transient |
+| 3 | clawhub update failed (moderation) | Check `clawhub inspect stellar-trails --json` moderation state → if hidden, ask user |
+| 4 | dev.sh restart failed (port in use) | Kill orphaned listener: `ss -tlnp \| grep ':3000' \| grep -oP 'pid=\K[0-9]+' \| xargs kill -9` + re-run Step 4 |
+| 4 | zip sync failed (directory missing) | `mkdir -p /home/user_skills` + re-run Step 4 |
+| 5 | E7 GATE FAILED (token mismatch) | Re-run Step 1 to re-write token, then re-run Step 5 |
+
+**Anti-patterns (FORBIDDEN)**:
+- ❌ "Step 2 failed but I'll proceed to Step 3" — NO. Retry Step 2 until ✓ before proceeding.
+- ❌ "I'll summarize the output instead of printing verbatim" — NO. Print the raw stdout. The user needs to see the actual `✓`/`✗` markers.
+- ❌ "Step 4d failed but 4a-4c passed, so Step 4 is mostly OK" — NO. Step 4 is one unit. If any sub-check fails, the whole step fails. Retry the entire Step 4.
+- ❌ "After 3 retries I'll just skip to Step 5" — NO. Use E6 Escape Hatch to make the skip visible, or ask the user.
+
+### 5/5 GREEN GATE (NEW v9.12.0)
+
+After Step 5 completes, print this confirmation BEFORE entering SPECIFY:
+
+```
+✓ 5/5 GREEN — activation complete
+```
+
+**Rule**: If ANY of the 5 steps is ✗ (not yet green after retries), do NOT print this line. Instead, continue retrying the failed step. Only print `5/5 GREEN` when all 5 steps have printed `✓`.
+
+**Self-check before printing 5/5 GREEN**:
+- Did Step 1 print `✓ Step 1`? → If NO, retry Step 1
+- Did Step 2 print `✓ Step 2`? → If NO, retry Step 2
+- Did Step 3 print `✓ Step 3`? → If NO, retry Step 3
+- Did Step 4 print `✓ Step 4` (including all sub-checks 4a-4e)? → If NO, retry Step 4
+- Did Step 5 print `✓ Step 5`? → If NO, retry Step 5
+
+Only when all 5 answers are YES, print `✓ 5/5 GREEN — activation complete` and proceed to SPECIFY.
+
+After 5/5 GREEN: Begin SPECIFY (or IMPLEMENT if continuation detected).
 
 ### FORBIDDEN Rationalizations for Skipping Activation (E5 — Layer 3, NEW in v9.3.0)
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## [9.12.0] — 2026-08-23
+
+### Added
+- E12 — Activation Retry Protocol: if Step N bash exits non-zero, the LLM MUST print error output, diagnose, fix, and re-run Step N. Max 3 retries per step, then E6 Escape Hatch or ask user. Common failure fixes table provided for each step.
+- 5/5 GREEN GATE: after Step 5, print `✓ 5/5 GREEN — activation complete` before entering SPECIFY. If any step is ✗, continue retrying. Self-check ensures all 5 steps printed ✓ before proceeding.
+- Print stdout mandate: each Step bash block stdout MUST be printed verbatim in transcript — no summarizing or suppressing.
+
+### Changed
+- All 5 Step bash blocks now `exit 1` on ANY failure (not just E7 GATE failures). This allows the Bash tool to report non-zero exit code → LLM detects failure → triggers E12 retry. Previously, Step 1 (SSV), Step 2 (HTTP != 200), Step 3 (clawhub unreachable), Step 4 (sub-checks 4a/4d/4e) would echo ✗ but exit 0 — LLM could not detect failure from exit code alone.
+
 ## [9.11.9] — 2026-08-17
 
 ### Added
