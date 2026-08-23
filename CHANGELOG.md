@@ -1,5 +1,15 @@
 # Changelog
 
+## [9.11.9] — 2026-08-17
+
+### Added
+- `.zscripts/dev.sh` is now git-tracked (was in .gitignore). This ensures the canonical runtime dev.sh is version-controlled alongside the skill source.
+- Pre-Push Check 14: verifies `.zscripts/dev.sh` is git-tracked AND hash matches `skill/stellar-trails/dev.sh`. Catches .gitignore regression + dev.sh drift between runtime copy and zip source.
+- SKILL.md Step 4b: documents that `.zscripts/dev.sh` is git-tracked since v9.11.9, `cp -f` is now a sync (not one-way copy).
+
+### Changed
+- `.gitignore`: changed `.zscripts/` (ignore whole dir) to `.zscripts/*` (ignore contents) + `!.zscripts/dev.sh` (exception). This allows tracking dev.sh while still ignoring runtime files (chibi.svg, index.html, st-devsh.pid, st-devsh.log).
+
 ## [9.11.8] — 2026-08-17
 
 ### Fixed

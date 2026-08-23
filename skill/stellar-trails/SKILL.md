@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.11.8
+- **version**: 9.11.9
 
 ---
 
@@ -296,10 +296,13 @@ FILES_OK="yes"
 for f in SKILL.md procedure/phases.md dev.sh index.html chibi.svg; do [ ! -f "$SKILL_DIR/$f" ] && echo "✗ Step 4 WARNING: missing $f" && FILES_OK="no"; done
 if [ "$FILES_OK" = "yes" ]; then echo "✓ Step 4a: all skill files present"; else echo "✗ Step 4a FAILED: some files missing — graceful degradation"; fi
 mkdir -p "$ZSCRIPTS"
+# v9.11.9: .zscripts/dev.sh is now git-tracked (canonical runtime source).
+# Step 4b syncs skill/stellar-trails/dev.sh → .zscripts/dev.sh to keep both in sync.
+# Pre-Push Check 14 verifies they have identical hashes before push.
 [ -f "$SKILL_DIR/dev.sh" ] && cp -f "$SKILL_DIR/dev.sh" "$ZSCRIPTS/dev.sh" && chmod +x "$ZSCRIPTS/dev.sh"
 [ -f "$SKILL_DIR/index.html" ] && cp -f "$SKILL_DIR/index.html" "$ZSCRIPTS/index.html"
 [ -f "$SKILL_DIR/chibi.svg" ] && cp -f "$SKILL_DIR/chibi.svg" "$ZSCRIPTS/chibi.svg"
-echo "✓ Step 4b: .zscripts/ force-overridden with latest files"
+echo "✓ Step 4b: .zscripts/ synced (dev.sh is git-tracked since v9.11.9)"
 # Bug 3 fix (v9.11.6): kill bash SUPERVISOR via PID file, not python3 listener via ss.
 # ss -tlnp | grep ':3000' returns python3 (the listener), killing it triggers bash
 # supervisor to restart python3 with the OLD dev.sh still loaded — file reload fails.
@@ -974,6 +977,30 @@ if missing:
 else:
     print(f"✓ Check 13: all file references valid ({files_scanned} files scanned)")
 PYEOF
+```
+
+#### Check 14: .zscripts/dev.sh git-tracked + hash matches skill copy (NEW v9.11.9)
+```bash
+# Verifies that .zscripts/dev.sh is git-tracked (not ignored by .gitignore)
+# AND that its hash matches skill/stellar-trails/dev.sh (the zip source).
+# Catches: .gitignore regression (re-ignoring .zscripts/), dev.sh drift between
+# the tracked runtime copy and the zip source.
+if git ls-files --error-unmatch .zscripts/dev.sh >/dev/null 2>&1; then
+  SKILL_HASH=$(sha256sum skill/stellar-trails/dev.sh | cut -d' ' -f1)
+  ZSCRIPTS_HASH=$(sha256sum .zscripts/dev.sh | cut -d' ' -f1)
+  if [ "$SKILL_HASH" != "$ZSCRIPTS_HASH" ]; then
+    echo "✗ Check 14 FAIL: .zscripts/dev.sh hash mismatch"
+    echo "  skill/stellar-trails/dev.sh: $SKILL_HASH"
+    echo "  .zscripts/dev.sh:            $ZSCRIPTS_HASH"
+    echo "  Fix: cp -f skill/stellar-trails/dev.sh .zscripts/dev.sh"
+  else
+    echo "✓ Check 14: .zscripts/dev.sh tracked + hash matches skill copy ($ZSCRIPTS_HASH)"
+  fi
+else
+  echo "✗ Check 14 FAIL: .zscripts/dev.sh is NOT git-tracked — check .gitignore exception"
+  echo "  Expected pattern in .gitignore: .zscripts/* + !.zscripts/dev.sh"
+  echo "  Or run: git add -f .zscripts/dev.sh"
+fi
 ```
 
 ### When to skip Pre-Push Local Verification

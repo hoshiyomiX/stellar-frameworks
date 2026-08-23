@@ -2,7 +2,8 @@
 # Only skill/ (source), README.md, .github/, .githooks/ are tracked.
 
 # Platform infrastructure (not part of this skill)
-.zscripts/
+.zscripts/*
+!.zscripts/dev.sh
 Caddyfile
 db/
 bun.lock
