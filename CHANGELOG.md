@@ -1,5 +1,34 @@
 # Changelog
 
+## [9.13.0] — 2026-08-23
+
+### P1: Enforcement Consolidation
+- Added Enforcement Vectors Overview table at top of enforcement section: 12 vectors mapped to 3 tiers (Legacy Text / Pre-Tool Gate / Sandbox-Native / Exit Code) with status (Legacy/Active) and deprecation notes.
+- E1-E3 reclassified as "Legacy Text Enforcement" — text rules remain mandatory, but sandbox-native vectors (E7-E12) now backstop them.
+- E4 marked as "partially superseded by E12 (exit codes)" but still mandatory.
+- All 12 vectors RETAINED — no removal. Only reorganization + deprecation markers.
+
+### P2: Worklog Management Automation
+- Worklog rotation now EXECUTES in Step 5 bash (was: documentation only). Threshold lowered from 100 to 50 entries. Runs every activation.
+- L1 pattern extraction prompt added to DELIVER phase instructions.
+- Knowledge on-demand loading added to Step 5 bash: based on ST_TASK_TYPE env var, loads relevant knowledge file preview (5 lines).
+
+### P3: Knowledge On-Demand Loading
+- Step 5 bash now loads knowledge file preview based on task type (coding→error-patterns, audit→patterns, document→conventions, default→user-profile).
+- Uses `head -30 | head -5` to load just 5 lines — minimal context impact.
+
+### P5: Context Pressure Adaptive Protocol
+- Three-tier adaptive mode: Full (LOW pressure) / Standard (MEDIUM) / Minimal (HIGH) / Escape Hatch (CRITICAL).
+- LLM self-assesses context pressure before SPECIFY: task count + conversation length + recall difficulty.
+- MEDIUM mode: skips E1-E3 + Pre-Push checks 2-7,9,11-13. Retains E4-E12 + checks 1+8+10+14.
+- HIGH mode: skips E1-E3, SADC, Pre-Push (unless pushing), templates. Retains banner+5 steps+5/5 GREEN+PASS.
+- Print mode switch when pressure detected.
+
+### P5: Compliance Score Tracking
+- At DELIVER, LLM self-assesses compliance score (N/12) and appends to E9 activation log.
+- Rubric: E1-E12 each worth 1 point. Score <10 = report to user.
+- Format: `COMPLIANCE v<VERSION> score=N/12 skipped=[list] mode=[full|standard|minimal]`
+
 ## [9.12.0] — 2026-08-23
 
 ### Added

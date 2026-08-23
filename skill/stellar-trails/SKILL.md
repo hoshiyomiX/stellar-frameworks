@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.12.0
+- **version**: 9.13.0
 
 ---
 
@@ -363,6 +363,31 @@ ST_TIMESTAMP=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 ST_TOKEN=$(cat /tmp/st-active)
 echo "${ST_TIMESTAMP} v${ST_VERSION} token=${ST_TOKEN} steps=5/5 banner=YES" >> /home/user_skills/.st-activation-log
 echo "✓ Step 5: phases loaded + classified: [tier]/[type]/[NEW|YES] — E9 log entry written"
+# v9.13.0 P2: Automated worklog rotation — execute, not just document.
+# Runs every activation. If worklog > 50 entries, rotate immediately (don't wait for 100).
+WORKLOG="/home/z/my-project/worklog.md"
+if [ -f "$WORKLOG" ]; then
+  WENTRY_COUNT=$(grep -c '^---$' "$WORKLOG" 2>/dev/null || echo 0)
+  if [ "$WENTRY_COUNT" -gt 50 ]; then
+    ARCHIVE="${WORKLOG%.md}-archive-$(date -u '+%Y-%m-%d').md"
+    mv "$WORKLOG" "$ARCHIVE"
+    # Preserve last 5 entries for continuity
+    awk 'BEGIN{RS="^---$"} {entries[NR]=$0} END{print "---"; for(i=NR-4;i<=NR;i++) if(entries[i]) print entries[i]}' "$ARCHIVE" > "$WORKLOG"
+    echo "  P2: worklog rotated ($WENTRY_COUNT → 5 entries, archive: $ARCHIVE)"
+  fi
+fi
+# v9.13.0 P3: Knowledge on-demand loading — actually load relevant file, not just instruct.
+# Based on task type (determined by LLM before running this bash), load the relevant knowledge file.
+# The LLM sets ST_TASK_TYPE before running Step 5. If not set, default to "coding".
+ST_TASK_TYPE="${ST_TASK_TYPE:-coding}"
+KBASE="/home/z/my-project/skills/stellar-trails/knowledge"
+case "$ST_TASK_TYPE" in
+  coding|Coding)    head -30 "$KBASE/error-patterns.md" 2>/dev/null | head -5 | sed 's/^/  /' ;;
+  audit|Audit)      head -30 "$KBASE/patterns.md" 2>/dev/null | head -5 | sed 's/^/  /' ;;
+  document|Document) head -30 "$KBASE/conventions.md" 2>/dev/null | head -5 | sed 's/^/  /' ;;
+  *)               head -30 "$KBASE/user-profile.md" 2>/dev/null | head -5 | sed 's/^/  /' ;;
+esac
+echo "  P3: knowledge preview loaded for task_type=$ST_TASK_TYPE"
 ```
 
 **Mandatory TodoWrite protocol (E8)**: Before Step 1 bash, call `TodoWrite` with 5 items (Step 1 through Step 5), all status `pending`. Before each Step N bash, mark Step N `in_progress`. After each Step N bash succeeds, mark Step N `completed`. User sees the live checklist transition in real-time — this is visibility enforcement that text cannot provide.
@@ -436,6 +461,63 @@ Only when all 5 answers are YES, print `✓ 5/5 GREEN — activation complete` a
 
 After 5/5 GREEN: Begin SPECIFY (or IMPLEMENT if continuation detected).
 
+### Context Pressure Adaptive Protocol (NEW v9.13.0)
+
+**Problem**: In long sessions (10+ tasks), context budget depletes. SKILL.md is ~21K tokens (10% of 200K budget). As conversation accumulates, the LLM starts skipping enforcement rules (E5 rationalizations kick in). The skill acknowledges this (E6 Escape Hatch) but doesn't ADAPT — it applies the same 47 rules regardless of context pressure.
+
+**Solution**: Three-tier adaptive mode based on self-assessed context pressure:
+
+| Context Pressure | Trigger | Mode | Rules Applied |
+|-------------------|---------|------|---------------|
+| **LOW** (<60%) | Early session, few tasks done | Full Mode | All 12 vectors + 14 checks + all phases + all templates |
+| **MEDIUM** (60-80%) | Mid session, 5-10 tasks | Standard Mode | E4-E6 + E7-E12 + phase markers + Pre-Push checks 1+8+10+14 only (skip 2-7,9,11-13) |
+| **HIGH** (80-95%) | Late session, 10+ tasks | Minimal Mode | Banner + 5 steps + 5/5 GREEN + ☄️ PASS report. Skip E1-E3, SADC, Pre-Push (unless pushing), templates |
+| **CRITICAL** (>95%) | Emergency | Escape Hatch | E6 only: print `⚠️ ACTIVATION SKIPPED` + reason + proceed |
+
+**Self-assessment criteria** (LLM evaluates before SPECIFY):
+- How many tasks have I completed this session? (0-2=LOW, 3-7=MEDIUM, 8-15=HIGH, 16+=CRITICAL)
+- How long is the conversation history? (short=LOW, medium=MEDIUM, long=HIGH, very long=CRITICAL)
+- Am I struggling to recall earlier instructions? (NO=LOW/MEDIUM, YES=HIGH/CRITICAL)
+
+**When switching to MEDIUM or HIGH mode**, print:
+```
+⚠️ CONTEXT PRESSURE: [LOW|MEDIUM|HIGH] — switching to [Standard|Minimal] Mode
+  Active vectors: E4-E6, E7-E12 (skipping E1-E3 text enforcement)
+  Pre-Push: checks 1+8+10+14 only (skipping 2-7,9,11-13)
+  Phase markers: ☄️ ENTER/EXIT retained
+  Templates: [Standard|skipped]
+```
+
+**Anti-patterns (FORBIDDEN)**:
+- ❌ "I'll use HIGH mode from the start to save tokens" — NO. Start in Full mode. Only switch when pressure is real.
+- ❌ "I'm in HIGH mode so I'll skip the banner" — NO. Banner + 5 steps + 5/5 GREEN are ALWAYS required, even in CRITICAL mode (use E6 Escape Hatch for that).
+- ❌ "HIGH mode means I don't need to print phase markers" — NO. Phase markers are retained in all modes except CRITICAL (which uses E6).
+
+### Compliance Score Tracking (NEW v9.13.0)
+
+**Problem**: E9 logs activation events but not compliance scores. There's no feedback loop to detect patterns like "last 10 activations: 8/10 followed all steps, 2/10 skipped E3."
+
+**Solution**: At DELIVER phase, the LLM self-assesses compliance and appends a score to the E9 log:
+
+```bash
+# v9.13.0: Compliance score appended to activation log at DELIVER
+# Format: COMPLIANCE v<VERSION> score=N/12 vectors_skipped=E1,E3
+# The LLM evaluates which of the 12 vectors it actually followed during this task
+echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') COMPLIANCE v${ST_VERSION} score=[N]/12 skipped=[list] mode=[full|standard|minimal]" >> /home/user_skills/.st-activation-log
+```
+
+**Scoring rubric** (LLM self-assesses honestly):
+- E1: Did I print all phase markers? (+1)
+- E2: Did I print banner + COMMIT + REPORT? (+1)
+- E3: Did I run AskUserQuestion or skip with reason? (+1)
+- E4: Did I print banner before any tool? (+1)
+- E5: Did I resist all 8 rationalizations? (+1)
+- E6: N/A unless escape hatch used (default +1)
+- E7-E11: Did E7 token verify + E8 TodoWrite + E9 log + E10 line proof + E11 oracle? (+5)
+- E12: Did all 5 steps exit 0 + 5/5 GREEN printed? (+1)
+
+**Total**: 12 points. Score 12/12 = full compliance. Score <10 = report to user.
+
 ### FORBIDDEN Rationalizations for Skipping Activation (E5 — Layer 3, NEW in v9.3.0)
 
 The following thoughts are **CORRECTNESS BUGS**, not valid optimizations. If you catch yourself thinking ANY of these, STOP and run activation NOW.
@@ -479,7 +561,28 @@ If you are under extreme context pressure (≥90% context used) and MUST skip ac
 
 ---
 
-## Three Enforcement Layers (NEW in v9.0.0)
+## Enforcement Vectors Overview (v9.13.0 consolidated)
+
+Stellar Trails uses 12 enforcement vectors across 3 tiers. **All vectors are retained** — they are mandatory protocol. The table below shows which are "active" (primary enforcement) vs "legacy" (superseded but documented for compliance audit).
+
+| Tier | Vector | Status | Role |
+|------|--------|--------|------|
+| **Legacy Text** | E1 Phase Machine | Legacy (v9.0.0) | Text-only; superseded by E7-E12 for sandbox-native enforcement, but phase markers still required |
+| **Legacy Text** | E2 Mandatory Prints | Legacy (v9.0.0) | Text-only; banner/COMMIT/REPORT still required, but compliance verified by E8 TodoWrite + E12 exit codes |
+| **Legacy Text** | E3 Preferences Dialog | Legacy (v9.0.0) | Text-only; AskUserQuestion gate still required, but no sandbox-native enforcement |
+| **Pre-Tool Gate** | E4 Pre-Tool-Call Gate | Active (v9.3.0) | Hard gate: no tool before banner+5 steps. **Partially superseded by E12** (exit codes) but still mandatory |
+| **Pre-Tool Gate** | E5 Anti-Rationalization | Active (v9.3.0) | 8 forbidden rationalizations — most important text enforcement |
+| **Pre-Tool Gate** | E6 Escape Hatch | Active (v9.3.0) | Visible skip for ≥90% context pressure |
+| **Sandbox-Native** | E7 Hash Token Gate | Active (v9.4.0) | File token verification — LLM cannot fake |
+| **Sandbox-Native** | E8 TodoWrite Live Marker | Active (v9.4.0) | Real-time UI visibility |
+| **Sandbox-Native** | E9 Persistent Log | Active (v9.4.0) | Cross-session audit trail |
+| **Sandbox-Native** | E10 Line-Number Proof | Active (v9.4.0) | Read tool ground truth |
+| **Sandbox-Native** | E11 Clawhub Oracle | Active (v9.4.0) | External binary ground truth |
+| **Exit Code** | E12 Activation Retry | Active (v9.12.0) | Exit code enforcement + retry-until-green + 5/5 GREEN GATE |
+
+**Deprecation notes**: E1-E3 are "legacy" in the sense that sandbox-native vectors (E7-E12) provide stronger enforcement for the same concerns. However, the TEXT rules in E1-E3 (phase markers, mandatory prints, AskUserQuestion gate) remain mandatory — they are the protocol the LLM must follow. The "legacy" label means only that sandbox-native mechanisms now backstop them.
+
+## Legacy Text Enforcement (E1-E3, v9.0.0 — retained, backstopped by E7-E12)
 
 This version adds three deterministic enforcement layers that shift compliance from LLM goodwill to verifiable artifacts. Every layer below produces a print, a file, or a turn-ending marker — none rely on the LLM "remembering" to do them.
 
