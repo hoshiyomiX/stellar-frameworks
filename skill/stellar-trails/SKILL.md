@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.13.0
+- **version**: 9.13.1
 
 ---
 
@@ -87,6 +87,8 @@ If LLM skips Step 1, token doesn't exist → Step 2 bash exits 1 → LLM cannot 
 
 **Subagent write access caveat (added v9.11.4)**: `/tmp/st-active` is owned by the same user that subagents run as (`-rw-rw-r-- z:z`), so a subagent CAN overwrite the token to bypass the E7 gate. The gate enforces Step 1 → Step 2+ ordering for the **main agent**; it does not prevent a malicious subagent from writing a valid token without running Step 1. Mitigation: the orchestrating main agent should pre-validate that the token was written by Step 1 (not by a subagent) before trusting subsequent steps. This is best-effort enforcement, not tamper-proof.
 
+**Token determinism caveat (added v9.13.1)**: The token is `sha256("<version>\n")[:16]` — a pure function of the version string, not a session secret. Every session (main agent, subagent, concurrent or not) running the same skill version computes the **identical** token value. Verified live: token `6c81522b916ad90e` appeared in activation-log entries written by ≥2 distinct sessions running v9.12.0 on 2026-08-23. The gate proves *"someone hashed the version line on this filesystem"*, never *"this specific agent ran Step 1"*. The enforcement matrix row is therefore downgraded from NO to PARTIAL.
+
 #### Vektor 2 — TodoWrite Live Marker (E8)
 
 TodoWrite is a platform tool that renders a live checklist visible to the user in real-time. The user sees checkboxes transition `pending → in_progress → completed` as the LLM works. This is **visibility enforcement** — user can SEE if steps are being executed, not just trust LLM's text claims.
@@ -105,19 +107,19 @@ TodoWrite is a platform tool that renders a live checklist visible to the user i
 
 Each successful activation appends to `/home/user_skills/.st-activation-log` (persistent across sessions). User can audit this file anytime.
 
-**Log entry format** (one line per activation):
+**Log entry format** (one line per activation — corrected v9.13.1 to match actual Step 5 bash output):
 ```
-YYYY-MM-DDTHH:MM:SSZ v<VERSION> session=<session_id_short> steps=5/5 banner=YES tokens=YES
+YYYY-MM-DDTHH:MM:SSZ v<VERSION> token=<hash> steps=5/5 banner=YES
 ```
 
 Step 5 writes the log entry. Next session's Step 1 can read the log to verify prior activations occurred. LLM can fake a log entry, but:
 - Timestamps must be monotonic — fake entries with wrong timestamps are detectable
-- Session IDs are recorded by platform — fake session IDs mismatch real ones
+- No session ID is recorded — the log proves WHEN an activation happened, never WHO did it
 - User can `cat /home/user_skills/.st-activation-log` to audit anytime
 
-**This is fraud detection, not prevention** — but it raises the cost of fraud (LLM must fabricate consistent timestamps + session IDs).
+**Empirical persistence + multi-session caveat (added v9.13.1)**: Cross-session persistence is a **verified fact**, not an aspiration. At audit time the log held 326 entries across 38 distinct days (2026-07-11 → 2026-08-23, versions v9.4.0 → v9.13.0) with **0 timestamp-monotonicity violations**. However, the sandbox filesystem is **shared by concurrent sessions**, and their entries interleave indistinguishably. On 2026-08-23 alone, ≥2 sessions interleaved within one hour — including a `COMPLIANCE v9.13.0 score=12/12` entry that belongs to a session which wrote **no adjacent activation entry**. Only version/token discontinuities distinguish the sessions. **The log proves WHEN, never WHO.**
 
-**Best-effort caveat (added v9.11.4)**: `/home/user_skills/` is world-writable (`drwxrwxrwx` mode 0777) in the z.ai sandbox, meaning any process — including subagents — can modify or append to the activation log. This vector is fraud-detection (anomalous timestamps or session IDs are visible on audit), not fraud-prevention. A determined attacker with bash access can forge entries that pass monotonicity checks. The real value of E9 is **visibility for the user**, not cryptographic integrity.
+**Best-effort caveat (added v9.11.4)**: `/home/user_skills/` is world-writable (`drwxrwxrwx` mode 0777) in the z.ai sandbox, meaning any process — including subagents — can modify or append to the activation log. This vector is fraud-detection (anomalous timestamps are visible on audit), not fraud-prevention. The real value of E9 is **visibility for the user**, not cryptographic integrity.
 
 #### Vektor 4 — Read Tool Line-Number Proof (E10)
 
@@ -144,15 +146,17 @@ Step 3 runs `clawhub inspect` — output is ground truth from an external binary
 
 **Why this works**: `clawhub` is a binary outside LLM control. The real protection is that Step 4 **re-runs `clawhub inspect`** and cross-checks the version — that re-run is the actual oracle. The cached file at `/tmp/st-clawhub-oracle.json` is just an optimization to avoid a second network call.
 
-**Fabrication caveat (corrected v9.11.4)**: A previous version of this section claimed "LLM cannot fabricate `/tmp/st-clawhub-oracle.json` without actually running clawhub." This was overstated — the file is plain JSON at `/tmp/` (permissions `-rw-rw-r--`), and any bash command can write arbitrary content to it. The actual protection is Step 4's re-verification via fresh `clawhub inspect` calls, not the file's contents. The file is an audit artifact, not a tamper-proof oracle.
+**Fabrication caveat (corrected v9.11.4, re-verified v9.13.1)**: A previous version of this section claimed "LLM cannot fabricate `/tmp/st-clawhub-oracle.json` without actually running clawhub." This was overstated — the file is plain JSON at `/tmp/` (permissions `-rw-rw-r-- z:z`), confirmed by both `bash stat` and `python3 os.stat`. Any bash command can write arbitrary content to it. The actual protection is Step 4's re-verification via fresh `clawhub inspect` calls, not the file's contents. The file is an audit artifact, not a tamper-proof oracle.
+
+**Parse-defensiveness note (added v9.13.1)**: Live registry responses may **omit or null** fields the checks might expect — `moderation.state` and `name` were absent/`None` while `latestVersion.version` was present and correct. Always extract `latestVersion.version` defensively: `python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')"`.
 
 #### Combined Enforcement Matrix
 
 | Vector | What it enforces | LLM can fake? | User can verify? |
 |---|---|---|---|
-| E7 Hash token | Steps 2-5 cannot run without Step 1 | NO (token requires actual file read) | YES (cat /tmp/st-active) |
+| E7 Hash token | Steps 2-5 cannot run without Step 1 | PARTIAL (proves hashing happened, not who did it — token is version-derived, identical across concurrent sessions) | YES (cat /tmp/st-active) |
 | E8 TodoWrite | Steps visible in real-time UI | Partially (can mass-mark, but transitions are visible) | YES (watch live checklist) |
-| E9 Persistent log | Cross-session audit trail | Partially (timestamps + session IDs must be consistent) | YES (cat /home/user_skills/.st-activation-log) |
+| E9 Persistent log | Cross-session audit trail | Partially (timestamps must be monotonic; no session ID — log proves WHEN, never WHO) | YES (cat /home/user_skills/.st-activation-log) |
 | E10 Line-number proof | Step 1 actually called Read | Partially (LLM knows line 19) | YES (read same file, compare) |
 | E11 Clawhub oracle | Step 3 actually ran clawhub | NO (external binary output is ground truth) | YES (cat /tmp/st-clawhub-oracle.json) |
 
@@ -2167,6 +2171,26 @@ This adaptation captures the **concept** of layered memory (L0-L3) and **structu
 
 ## Limitations
 
-This framework is text in a skill file. It relies on the LLM reading it to follow instructions. The three enforcement layers (phase machine, mandatory prints, preferences dialog) shift enforcement from prose to verifiable artifacts, but the LLM is still the executor — a determined LLM can rationalize past any text-based rule. The QA Attestation is self-graded. The user is the final judge of quality.
+This framework is text in a skill file. It relies on the LLM reading it to follow instructions. 12 enforcement vectors across 3 tiers (Legacy Text E1-E3, Pre-Tool Gate E4-E6, Sandbox-Native E7-E11, Exit Code E12) shift compliance from prose to verifiable artifacts, but the LLM is still the executor — a determined LLM can rationalize past any text-based rule. Compliance scoring (v9.13.0) is self-graded. The user is the final judge of quality.
 
-Research (Lost in the Middle, arXiv 2307.03172) shows inherent ~70-85% compliance ceilings on SOTA models for complex multi-step prompts. The v9.0.0 enforcement layers raise the realistic ceiling to ~90% via text alone. Reaching ~98% requires a harness-level verifier script that scans the transcript for required prints/gates. 100% guaranteed compliance requires platform-level enforcement (ClawHub rejecting non-compliant invocations) — out of scope for skill authoring.
+**Verified WORKING in the current environment** (2-loop audit, 2026-08-23):
+1. Cross-session persistence of `/home/user_skills/.st-activation-log` — 326 entries, 38 days, 0 monotonicity violations
+2. `clawhub inspect` + `clawhub --no-input update --force` drift detection + force-update (v9.12.0 → v9.13.0 observed mid-activation)
+3. 3-way version sync: registry = repo `main@65b6bf4` = installed skill = v9.13.0; index.html matches (Check 10)
+4. Popup server `:3000` serving HTTP 200 via curl + raw TCP socket; Caddy gateway on internal port 81
+5. `clawhub --version` exits 1 (quirk reproduces exactly as documented)
+6. `/home/user_skills/` is world-writable 0777, owner `z:z` (bash stat + python3 os.stat agree)
+7. All 12 runtime dependencies present (bash, grep -P, sha256sum, python3, curl, ss, zip, git, setsid, awk, sed, clawhub)
+
+**Found NOT working / overstated / unverifiable** (corrected v9.13.1):
+1. E7 token is version-derived (`sha256("<version>\n")[:16]`), not session-scoped — identical across concurrent sessions. Gate proves "someone hashed", never "this agent ran Step 1". Matrix: NO → PARTIAL.
+2. E9 log format mismatch: documented `session=`/`tokens=YES` fields the Step 5 bash never wrote — corrected to actual output (`token=<hash> steps=5/5 banner=YES`). "Session IDs are recorded by platform" was false.
+3. No session ID attribution: the log proves WHEN, never WHO — concurrent sessions interleave indistinguishably.
+4. No PAT in clawhub-installed sandboxes: every authenticated GitHub operation (auth'd reads, any write op, CI log fetch, tag push, auto git-identity) is unavailable; only unauthenticated reads work (rate-limited).
+5. No `$HOME/.stellar-trails-repo/` in clawhub-installed sandboxes: the skill arrives from `/home/user_skills/stellar-trails.zip`, not a git clone. SSV is skipped gracefully.
+6. Popup user-side visibility: `:3000` serving confirmed internally, but whether the user's preview panel renders it cannot be tested from inside the sandbox.
+7. **Prose rots**: documentation claims drift from reality over time — "three enforcement layers" (superseded by 12 vectors/3 tiers in v9.13.0) and "QA Attestation" (renamed PCR per CHANGELOG, then PCR itself removed) survived as stale references until this audit.
+
+**Rule of thumb**: Prose rots faster than bash — re-audit documentation claims against the live environment regularly.
+
+Research (Lost in the Middle, arXiv 2307.03172) shows inherent ~70-85% compliance ceilings on SOTA models for complex multi-step prompts. The v9.0.0+ enforcement vectors raise the realistic ceiling to ~90% via text + sandbox-native mechanisms. Reaching ~98% requires a harness-level verifier script that scans the transcript for required prints/gates. 100% guaranteed compliance requires platform-level enforcement (ClawHub rejecting non-compliant invocations) — out of scope for skill authoring.

@@ -119,13 +119,17 @@ The following are advisory items ordered by frequency of occurrence.
 6. **`clawhub --version` exits 1** [QUIRK — added v9.11.4]
    The `clawhub` CLI does not support `--version` (returns exit 1, "unknown option"). Use `clawhub --help | head -1` instead — outputs banner like `🦞 ClawHub CLI v0.23.1 (cf771ad9)`. Pre-Push Check 6 uses `clawhub inspect --json` (which works correctly); avoid `--version` in any new diagnostic scripts.
 
-7. **Subagent toolset is restricted** [CRITICAL — added v9.11.4]
-   Subagents (`Explore`, `general-purpose`) in z.ai have a **reduced toolset** compared to the main agent: `Bash, Glob, Grep, LS, Read, Edit, MultiEdit, Write, TodoWrite, TodoRead, Skill`. The following tools are NOT provisioned to subagents:
+7. **Subagent toolset is restricted** [CRITICAL — added v9.11.4, re-verified + extended v9.13.1]
+   Subagents (`Explore`, `general-purpose`) in z.ai have a **reduced toolset** compared to the main agent: exactly 11 tools — `Bash, Glob, Grep, LS, Read, Edit, MultiEdit, Write, TodoWrite, TodoRead, Skill`. The following tools are NOT provisioned to subagents (confirmed by live probe 2026-08-23, GLM-5.3):
    - `AskUserQuestion` — subagents cannot ask the user questions; they must return control to the main agent
    - `Task` — subagents cannot spawn further subagents (no recursive delegation)
-   - `Outline`, `Complete`, `Skill` invocations work but load the skill into the subagent's context (consuming its token budget)
+   - `Outline`, `Complete` — not available
+   - `WebFetch`, `NotebookRead`, `NotebookEdit` — also absent (previously undocumented)
    
-   When delegating to a subagent, the orchestrating main agent MUST handle all `AskUserQuestion` decisions BEFORE dispatching, and pass the answers into the subagent's task prompt.
+   Subagents run as the **same user `z`** with working Bash — meaning subagents can read the installed skill and overwrite `/tmp/st-active` (E7) or append to the E9 log. **Never treat file-based artifacts as subagent-proof.** When delegating to a subagent, the orchestrating main agent MUST handle all `AskUserQuestion` decisions BEFORE dispatching, and pass the answers into the subagent's task prompt.
 
 8. **`/home/user_skills/` is world-writable (mode 0777)** [SECURITY — added v9.11.4]
    The persistent skills directory is world-writable, meaning any process (including subagents) can modify files like `.st-activation-log`. Treat persistent logs as best-effort audit artifacts, not tamper-proof evidence. For high-integrity verification, cross-check against external oracles (`clawhub inspect`) at query time rather than trusting cached files.
+
+9. **`$HOME/.stellar-trails-repo/` does not exist in clawhub-installed sandboxes** [NOTE — added v9.13.1]
+   In clawhub-installed sandboxes, the skill arrives from `/home/user_skills/stellar-trails.zip`, not a git clone. `$HOME/.stellar-trails-repo/` does not exist, and SSV is skipped gracefully (as documented in Step 1 bash). When git operations are needed (clone, commit, push), clone into the workspace (`/home/z/my-project/.stellar-trails-work/stellar-trails/`) and apply the Git Repository Isolation rule to that clone — never run bare `git fetch` from `/home/z/my-project/` (it would operate on the sandbox workspace repo).
