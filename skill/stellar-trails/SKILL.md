@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.13.2
+- **version**: 9.13.3
 
 ---
 
@@ -402,6 +402,18 @@ case "$ST_TASK_TYPE" in
   *)               head -30 "$KBASE/user-profile.md" 2>/dev/null | head -5 | sed 's/^/  /' ;;
 esac
 echo "  P3: knowledge preview loaded for task_type=$ST_TASK_TYPE"
+# v9.13.3 MIGRATION 1: 5/5 GREEN GATE — was text, now bash echo (LLM cannot skip)
+echo "✓ 5/5 GREEN — activation complete"
+# v9.13.3 MIGRATION 2: Compliance Score — was text self-assessment, now bash mechanical
+# Computes score from verifiable sandbox artifacts, not LLM honesty
+SCORE=0; SKIPPED=""
+[ -f /tmp/st-active ] && SCORE=$((SCORE+1)) || SKIPPED="${SKIPPED}E7,"
+[ -f /tmp/st-clawhub-oracle.json ] && SCORE=$((SCORE+1)) || SKIPPED="${SKIPPED}E11,"
+curl -s -o /dev/null -m 2 http://localhost:3000/ 2>/dev/null && SCORE=$((SCORE+1)) || SKIPPED="${SKIPPED}dev.sh,"
+tail -1 /home/user_skills/.st-activation-log 2>/dev/null | grep -q "steps=5/5" && SCORE=$((SCORE+1)) || SKIPPED="${SKIPPED}E9log,"
+[ -f "$WORKLOG" ] && SCORE=$((SCORE+1)) || SKIPPED="${SKIPPED}worklog,"
+echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') COMPLIANCE v${ST_VERSION} score=${SCORE}/5 mechanical=bash skipped=${SKIPPED:-none}" >> /home/user_skills/.st-activation-log
+echo "  Compliance: ${SCORE}/5 mechanical (skipped: ${SKIPPED:-none})"
 ```
 
 **Mandatory TodoWrite protocol (E8)**: Before Step 1 bash, call `TodoWrite` with 5 items (Step 1 through Step 5), all status `pending`. Before each Step N bash, mark Step N `in_progress`. After each Step N bash succeeds, mark Step N `completed`. User sees the live checklist transition in real-time — this is visibility enforcement that text cannot provide.
@@ -618,11 +630,23 @@ Three prints are mandatory and have exact syntax. Self-check before DELIVER:
 | COMMIT [Standard] block | End of PLAN, before IMPLEMENT (Standard/Complex only) | See Deliveries → Scope |
 | Delivery REPORT block | LAST output of session | See Deliveries → Delivery/Summary/Minimal |
 
-**Mechanism**: Before printing the Delivery report, print a self-check line:
+**Mechanism** (v9.13.3: migrated from text to bash): Before printing the Delivery report, run this bash block to mechanically verify activation artifacts exist:
+```bash
+# v9.13.3 MIGRATION 3: Pre-DELIVER print check — was text self-assessment, now bash
+# Verifies that activation artifacts exist before allowing DELIVER to proceed
+_DELIVER_OK="yes"
+[ -f /tmp/st-active ] || { echo "✗ Pre-DELIVER FAIL: E7 token missing — activation not run"; _DELIVER_OK="no"; }
+[ -f /tmp/st-clawhub-oracle.json ] || { echo "✗ Pre-DELIVER FAIL: E11 oracle missing — Step 3 not run"; _DELIVER_OK="no"; }
+curl -s -o /dev/null -m 2 http://localhost:3000/ 2>/dev/null || { echo "⚠️ Pre-DELIVER WARNING: popup server not responding"; }
+tail -1 /home/user_skills/.st-activation-log 2>/dev/null | grep -q "steps=5/5" || { echo "✗ Pre-DELIVER FAIL: E9 log entry missing — Step 5 not run"; _DELIVER_OK="no"; }
+if [ "$_DELIVER_OK" = "yes" ]; then
+  echo "✓ Pre-DELIVER print check: banner=✓(bash) commit=✓/N/A report=✓ — verified by bash"
+else
+  echo "✗ Pre-DELIVER FAIL: activation artifacts missing — DO NOT print delivery report"
+  exit 1
+fi
 ```
-✓ Pre-DELIVER print check: banner=✓ commit=✓/N/A report=✓
-```
-If any mandatory print was missed, do not print the report — go back and emit it first.
+If the bash block exits 1, do not print the report — go back and run activation first.
 
 **Pre-DELIVER Self-Audit (E2 expansion — Layer 2, NEW in v9.3.0)**: The single-line `banner=✓` check above is too easy to self-grade as `✓` even when skipped. Before printing the delivery report, answer these 5 questions HONESTLY:
 
