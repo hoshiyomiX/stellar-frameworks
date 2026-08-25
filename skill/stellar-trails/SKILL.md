@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.13.3
+- **version**: 9.13.4
 
 ---
 
@@ -487,37 +487,7 @@ Only when all 5 answers are YES, print `✓ 5/5 GREEN — activation complete` a
 
 After 5/5 GREEN: Begin SPECIFY (or IMPLEMENT if continuation detected).
 
-### Context Pressure Adaptive Protocol (NEW v9.13.0)
-
-**Problem**: In long sessions (10+ tasks), context budget depletes. SKILL.md is ~21K tokens (10% of 200K budget). As conversation accumulates, the LLM starts skipping enforcement rules (E5 rationalizations kick in). The skill acknowledges this (E6 Escape Hatch) but doesn't ADAPT — it applies the same 47 rules regardless of context pressure.
-
-**Solution**: Three-tier adaptive mode based on self-assessed context pressure:
-
-| Context Pressure | Trigger | Mode | Rules Applied |
-|-------------------|---------|------|---------------|
-| **LOW** (<60%) | Early session, few tasks done | Full Mode | All 12 vectors + 14 checks + all phases + all templates |
-| **MEDIUM** (60-80%) | Mid session, 5-10 tasks | Standard Mode | E4-E6 + E7-E12 + phase markers + Pre-Push checks 1+8+10+14 only (skip 2-7,9,11-13) |
-| **HIGH** (80-95%) | Late session, 10+ tasks | Minimal Mode | Banner + 5 steps + 5/5 GREEN + ☄️ PASS report. Skip E1-E3, SADC, Pre-Push (unless pushing), templates |
-| **CRITICAL** (>95%) | Emergency | Escape Hatch | E6 only: print `⚠️ ACTIVATION SKIPPED` + reason + proceed |
-
-**Self-assessment criteria** (LLM evaluates before SPECIFY):
-- How many tasks have I completed this session? (0-2=LOW, 3-7=MEDIUM, 8-15=HIGH, 16+=CRITICAL)
-- How long is the conversation history? (short=LOW, medium=MEDIUM, long=HIGH, very long=CRITICAL)
-- Am I struggling to recall earlier instructions? (NO=LOW/MEDIUM, YES=HIGH/CRITICAL)
-
-**When switching to MEDIUM or HIGH mode**, print:
-```
-⚠️ CONTEXT PRESSURE: [LOW|MEDIUM|HIGH] — switching to [Standard|Minimal] Mode
-  Active vectors: E4-E6, E7-E12 (skipping E1-E3 text enforcement)
-  Pre-Push: checks 1+8+10+14 only (skipping 2-7,9,11-13)
-  Phase markers: ☄️ ENTER/EXIT retained
-  Templates: [Standard|skipped]
-```
-
-**Anti-patterns (FORBIDDEN)**:
-- ❌ "I'll use HIGH mode from the start to save tokens" — NO. Start in Full mode. Only switch when pressure is real.
-- ❌ "I'm in HIGH mode so I'll skip the banner" — NO. Banner + 5 steps + 5/5 GREEN are ALWAYS required, even in CRITICAL mode (use E6 Escape Hatch for that).
-- ❌ "HIGH mode means I don't need to print phase markers" — NO. Phase markers are retained in all modes except CRITICAL (which uses E6).
+**FULL MODE ALWAYS (v9.13.4)**: Stellar Trails runs in Full Mode permanently — all 12 enforcement vectors, all 14 Pre-Push checks, all 6 phases, all templates, all the time. There is no "context pressure adaptive mode" — the skill always applies the complete protocol regardless of session length or context budget. If context is genuinely exhausted (≥90%), use E6 Escape Hatch for that specific emergency, then resume Full Mode on the next invoke.
 
 ### Compliance Score Tracking (NEW v9.13.0)
 
