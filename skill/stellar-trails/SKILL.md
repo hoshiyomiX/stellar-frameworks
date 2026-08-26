@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.13.4
+- **version**: 9.14.0
 
 ---
 
@@ -502,163 +502,43 @@ After 5/5 GREEN: Begin SPECIFY (or IMPLEMENT if continuation detected).
 echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') COMPLIANCE v${ST_VERSION} score=[N]/12 skipped=[list] mode=[full|standard|minimal]" >> /home/user_skills/.st-activation-log
 ```
 
-**Scoring rubric** (LLM self-assesses honestly):
-- E1: Did I print all phase markers? (+1)
-- E2: Did I print banner + COMMIT + REPORT? (+1)
-- E3: Did I run AskUserQuestion or skip with reason? (+1)
-- E4: Did I print banner before any tool? (+1)
-- E5: Did I resist all 8 rationalizations? (+1)
-- E6: N/A unless escape hatch used (default +1)
-- E7-E11: Did E7 token verify + E8 TodoWrite + E9 log + E10 line proof + E11 oracle? (+5)
-- E12: Did all 5 steps exit 0 + 5/5 GREEN printed? (+1)
+**Scoring**: bash computes mechanical score from artifacts (E7 token, E11 oracle, dev.sh HTTP, E9 log, worklog). LLM cannot inflate.
 
-**Total**: 12 points. Score 12/12 = full compliance. Score <10 = report to user.
+### FORBIDDEN Rationalizations (E5 — v9.3.0)
 
-### FORBIDDEN Rationalizations for Skipping Activation (E5 — Layer 3, NEW in v9.3.0)
+All 8 are correctness bugs. If you think any, STOP and run activation NOW.
+1. ❌ "Continuation task" → WRONG. Activation is required every invoke.
+2. ❌ "Simple/trivial task" → WRONG. Minimal tier still needs banner + 5 steps.
+3. ❌ "Session is long, save tokens" → WRONG. Activation = 0.25% of context.
+4. ❌ "Already printed banner" → WRONG. Print every invoke after truncation.
+5. ❌ "User didn't complain" → WRONG. Silence ≠ approval.
+6. ❌ "Label Minimal tier and skip" → WRONG. All tiers must activate.
+7. ❌ "Pattern drift — skipped before" → WRONG. Past bugs ≠ precedent.
+8. ❌ "Print report without activation" → WRONG. Silent skip = WORST option.
 
-The following thoughts are **CORRECTNESS BUGS**, not valid optimizations. If you catch yourself thinking ANY of these, STOP and run activation NOW.
+### If You Must Skip Activation — Escape Hatch (E6 — v9.3.0)
 
-❌ **"This is a continuation task, I don't need to re-activate"**
-   → WRONG. Continuation skips SPECIFY+PLAN, NOT activation. Every `Skill()` invoke requires fresh activation — after context truncation, you cannot reliably know what you did before.
-
-❌ **"This is a simple/trivial task, activation is overkill"**
-   → WRONG. SKILL.md says "every task gets a delivery report — no exceptions for simplicity." Minimal tier still requires banner + 5 steps + `☄️ PASS` report.
-
-❌ **"The session is already long, I'll save tokens by skipping"**
-   → WRONG. Activation takes ~2 seconds and ~500 tokens. From a 200K context budget, that's 0.25% — negligible. User cannot see your context length, so they cannot "understand" why you skipped.
-
-❌ **"I already printed the banner in a previous message"**
-   → WRONG. Per SKILL.md: "After context truncation, you cannot reliably know what you did." The banner is the ONLY signal to the user that activation ran. Print it every invoke.
-
-❌ **"The user didn't complain last time I skipped"**
-   → WRONG. User silence is not approval. The banner exists for the USER's benefit, not yours. They may have noticed but chosen not to comment, or they may not have realized skipping was a bug.
-
-❌ **"I'll just label it 'Minimal tier' and skip"**
-   → WRONG. Minimal tier still requires banner + 5 steps. The complexity tier affects REPORT FORMAT, not ACTIVATION REQUIREMENTS. All tiers must activate.
-
-❌ **"Pattern drift — I've skipped before and it was fine"**
-   → WRONG. Past skips were bugs, not precedent. Each invoke is independent; previous bugs do not authorize future bugs.
-
-❌ **"I'll print the report without activation, user won't notice"**
-   → WRONG. This is silent skipping — the WORST option. If you must skip (emergency only), use the Escape Hatch (E6 below) to make it visible. Silent skips hide failures from the user.
-
-### If You Must Skip Activation — Escape Hatch (E6 — Layer 5, NEW in v9.3.0)
-
-If you are under extreme context pressure (≥90% context used) and MUST skip activation:
-
-1. Print this EXACT line first: `⚠️ ACTIVATION SKIPPED — operating without banner`
-2. State the reason in one sentence (e.g., "Reason: 92% context used, emergency task")
-3. Acknowledge: `This is a correctness bug per SKILL.md E4 Pre-Tool-Call Gate.`
-4. Proceed with the task
-
-**Do NOT silently skip.** Silent skipping hides the failure from the user. A visible skip at least lets the user know they should verify the output more carefully.
-
-**Escape hatch is for emergencies only** — not for "I'm lazy" or "this is simple". Misusing the escape hatch is itself a correctness bug.
+Print: `⚠️ ACTIVATION SKIPPED — operating without banner` + reason + acknowledge correctness bug. Emergencies only (≥90% context). Do NOT silently skip.
 
 ---
 
-## Enforcement Vectors Overview (v9.13.0 consolidated)
+## Enforcement Vectors Overview (v9.13.0)
 
-Stellar Trails uses 12 enforcement vectors across 3 tiers. **All vectors are retained** — they are mandatory protocol. The table below shows which are "active" (primary enforcement) vs "legacy" (superseded but documented for compliance audit).
+**Legacy Text** (E1-E3, v9.0.0): Phase markers, mandatory prints, AskUserQuestion gate. Text-only, backstopped by E7-E12.
+**Pre-Tool Gate** (E4-E6, v9.3.0): Hard gate, anti-rationalization, escape hatch.
+**Sandbox-Native** (E7-E11, v9.4.0): Hash token, TodoWrite, persistent log, line proof, clawhub oracle.
+**Exit Code** (E12, v9.12.0): Exit code enforcement + retry-until-green + 5/5 GREEN GATE.
 
-| Tier | Vector | Status | Role |
-|------|--------|--------|------|
-| **Legacy Text** | E1 Phase Machine | Legacy (v9.0.0) | Text-only; superseded by E7-E12 for sandbox-native enforcement, but phase markers still required |
-| **Legacy Text** | E2 Mandatory Prints | Legacy (v9.0.0) | Text-only; banner/COMMIT/REPORT still required, but compliance verified by E8 TodoWrite + E12 exit codes |
-| **Legacy Text** | E3 Preferences Dialog | Legacy (v9.0.0) | Text-only; AskUserQuestion gate still required, but no sandbox-native enforcement |
-| **Pre-Tool Gate** | E4 Pre-Tool-Call Gate | Active (v9.3.0) | Hard gate: no tool before banner+5 steps. **Partially superseded by E12** (exit codes) but still mandatory |
-| **Pre-Tool Gate** | E5 Anti-Rationalization | Active (v9.3.0) | 8 forbidden rationalizations — most important text enforcement |
-| **Pre-Tool Gate** | E6 Escape Hatch | Active (v9.3.0) | Visible skip for ≥90% context pressure |
-| **Sandbox-Native** | E7 Hash Token Gate | Active (v9.4.0) | File token verification — LLM cannot fake |
-| **Sandbox-Native** | E8 TodoWrite Live Marker | Active (v9.4.0) | Real-time UI visibility |
-| **Sandbox-Native** | E9 Persistent Log | Active (v9.4.0) | Cross-session audit trail |
-| **Sandbox-Native** | E10 Line-Number Proof | Active (v9.4.0) | Read tool ground truth |
-| **Sandbox-Native** | E11 Clawhub Oracle | Active (v9.4.0) | External binary ground truth |
-| **Exit Code** | E12 Activation Retry | Active (v9.12.0) | Exit code enforcement + retry-until-green + 5/5 GREEN GATE |
+All 12 vectors retained. E1-E3 = legacy (text rules mandatory, backstopped by sandbox-native).
 
-**Deprecation notes**: E1-E3 are "legacy" in the sense that sandbox-native vectors (E7-E12) provide stronger enforcement for the same concerns. However, the TEXT rules in E1-E3 (phase markers, mandatory prints, AskUserQuestion gate) remain mandatory — they are the protocol the LLM must follow. The "legacy" label means only that sandbox-native mechanisms now backstop them.
 
 ## Legacy Text Enforcement (E1-E3, v9.0.0 — retained, backstopped by E7-E12)
 
-This version adds three deterministic enforcement layers that shift compliance from LLM goodwill to verifiable artifacts. Every layer below produces a print, a file, or a turn-ending marker — none rely on the LLM "remembering" to do them.
+**E1 Phase Machine**: Every task passes through all 6 phases. Print `☄️ ENTER/EXIT <PHASE>` markers. Missing = compliance bug.
 
-### E1 — Phase Machine Enforcement
+**E2 Mandatory Prints**: Banner (FIRST), COMMIT block (end of PLAN), REPORT block (LAST). Pre-DELIVER bash verifies artifacts exist. Self-audit: did I print banner first? did I read SKILL.md? did I verify popup? did I check ClawHub?
 
-Every task passes through all six phases (IDLE → SPECIFY → PLAN → IMPLEMENT → VERIFY → DELIVER). No phase is skipped, even for Minimal tier.
-
-**Mechanism**: Each phase entry requires a phase-marker print of the form `☄️ ENTER <PHASE>` before any other phase work. Each phase exit requires `☄️ EXIT <PHASE> → <NEXT>`. The DELIVER report's `Phase Trace` field lists every phase-marker pair. Missing markers = compliance bug.
-
-**Why**: Phase skipping is the #1 silent failure mode. The marker print makes skipping visible in the transcript, not invisible in the LLM's hidden reasoning.
-
-### E2 — Mandatory Print Enforcement (Banner / Report / Block)
-
-Three prints are mandatory and have exact syntax. Self-check before DELIVER:
-
-| Print | When | Required Syntax |
-|---|---|---|
-| Activation banner | FIRST output of session | See Activation section |
-| COMMIT [Standard] block | End of PLAN, before IMPLEMENT (Standard/Complex only) | See Deliveries → Scope |
-| Delivery REPORT block | LAST output of session | See Deliveries → Delivery/Summary/Minimal |
-
-**Mechanism** (v9.13.3: migrated from text to bash): Before printing the Delivery report, run this bash block to mechanically verify activation artifacts exist:
-```bash
-# v9.13.3 MIGRATION 3: Pre-DELIVER print check — was text self-assessment, now bash
-# Verifies that activation artifacts exist before allowing DELIVER to proceed
-_DELIVER_OK="yes"
-[ -f /tmp/st-active ] || { echo "✗ Pre-DELIVER FAIL: E7 token missing — activation not run"; _DELIVER_OK="no"; }
-[ -f /tmp/st-clawhub-oracle.json ] || { echo "✗ Pre-DELIVER FAIL: E11 oracle missing — Step 3 not run"; _DELIVER_OK="no"; }
-curl -s -o /dev/null -m 2 http://localhost:3000/ 2>/dev/null || { echo "⚠️ Pre-DELIVER WARNING: popup server not responding"; }
-tail -1 /home/user_skills/.st-activation-log 2>/dev/null | grep -q "steps=5/5" || { echo "✗ Pre-DELIVER FAIL: E9 log entry missing — Step 5 not run"; _DELIVER_OK="no"; }
-if [ "$_DELIVER_OK" = "yes" ]; then
-  echo "✓ Pre-DELIVER print check: banner=✓(bash) commit=✓/N/A report=✓ — verified by bash"
-else
-  echo "✗ Pre-DELIVER FAIL: activation artifacts missing — DO NOT print delivery report"
-  exit 1
-fi
-```
-If the bash block exits 1, do not print the report — go back and run activation first.
-
-**Pre-DELIVER Self-Audit (E2 expansion — Layer 2, NEW in v9.3.0)**: The single-line `banner=✓` check above is too easy to self-grade as `✓` even when skipped. Before printing the delivery report, answer these 5 questions HONESTLY:
-
-1. Did I print `☄️ STELLAR TRAILS · vX.Y.Z · ACTIVE` as my FIRST output to the user?
-2. Did I execute all 5 activation steps with `✓`/`✗` marks visible in the transcript?
-3. Did I read SKILL.md from disk in Step 1 (not just trust cached context)?
-4. Did I verify the popup server in Step 2 (HTTP 200)?
-5. Did I check ClawHub for updates in Step 3?
-
-If ANY answer is NO, append to the delivery report:
-```
-⚠️ ACTIVATION COMPLIANCE FAILURE:
-  - Banner printed as first output: YES/NO
-  - Steps executed with visible ✓/✗: n/5
-  - Failed steps: [list]
-  - Reason: [honest one-line explanation]
-```
-
-**Do NOT hide activation failures.** The user deserves to know. Self-grading `banner=✓` when you actually skipped is a lie — and the user can verify by scrolling up in the transcript. If they catch you lying, trust is broken permanently.
-
-**Why**: Bookend prints are the only signal the user has that the workflow ran. Missing any one of them is treated as a correctness bug, not a style preference.
-
-### E3 — Preferences Dialog Enforcement (AskUserQuestion)
-
-For any decision point where the LLM would otherwise guess audience/style/length/format/scope, invoke `AskUserQuestion` BEFORE producing content. This applies to:
-
-- Deliverable-creation tasks (Document, Visualization, PPT, PDF, Excel, dashboard, poster, script) — MANDATORY unless original request pins audience + style + length
-- Mid-task scope decisions (e.g., "should I also do X?", "which approach: A or B?") — MANDATORY
-- Recovery decisions after Pivot (e.g., "fallback approach A or new approach B?") — MANDATORY
-- Simple clarifications ("did you mean X or Y?") — MANDATORY if ambiguity would change output
-
-**Skip conditions** (auto-bypass, no AskUserQuestion needed):
-- User explicitly says "skip questions" / "just do it" / "no questions"
-- Continuation task where prior turn already approved the approach
-- Coding/Data Processing tasks with no design dimensions (e.g., "fix this typo", "run this script")
-- Trivial one-shot edits (single number change, single typo fix)
-
-**Mechanism**: Print `✓ Preferences dialog check: <INVOKED | SKIPPED: <reason>>` before any content-producing tool call in SPECIFY. This makes the decision visible.
-
-**Why**: Guessing audience/style/length causes the most expensive rework in document tasks. One batched 30-second question round prevents hours of regeneration.
-
-**Subagent unavailability (added v9.11.4)**: `AskUserQuestion` is provisioned ONLY to the main agent. Subagent toolsets in z.ai are limited to: `Bash, Glob, Grep, LS, Read, Edit, MultiEdit, Write, TodoWrite, TodoRead, Skill`. If a subagent encounters a decision that would normally require `AskUserQuestion`, it MUST return control to the orchestrating main agent with a clear statement of the decision needed — do NOT guess. The main agent can then invoke `AskUserQuestion` and re-dispatch the subagent with the user's answer.
+**E3 Preferences Dialog**: AskUserQuestion BEFORE content for Document/Visualization tasks. Print `✓ Preferences dialog check: <INVOKED|SKIPPED: reason>`. Skip: user says skip / all 3 explicit / trivial / coding / continuation. Not provisioned to subagents.
 
 ---
 
@@ -792,7 +672,7 @@ Print before any content-producing tool call: `✓ Preferences dialog check: <IN
 
 **Skip conditions**: user says skip / all 3 dimensions explicit / trivial edit / Coding/Non-Coding / continuation. AT MOST ONCE per run, before any content-producing tool. After answers return, proceed straight to PLAN (no loop-back).
 
-Full 6-8 question template + skip conditions: read `references/askuserquestion-gate.md` before invoking.
+**Skip conditions**: user says skip / all 3 dimensions explicit / trivial edit / Coding/Non-Coding / continuation. AT MOST ONCE per run.
 
 ---
 
@@ -823,88 +703,15 @@ Git rules (override defaults):
 
 ---
 
-## Implementation Discovery Protocol (NEW in v9.2.0)
+## Implementation Discovery Protocol (v9.2.0 — detail in `knowledge/implementation-discovery.md`)
 
-**Problem this solves**: While implementing a fix for bug X, the agent discovers bug Y in the same area. Two failure modes disrupt the workflow:
+If bug Y found while fixing bug X:
+1. STOP. Document in worklog.
+2. Same-Surface Test: same file + same root cause + same blast radius → FIX NOW. Different → DEFER.
+3. Never silently fix or skip Y.
 
-- **Silent fix Y** → user sees unexpected changes in the diff, cannot tell what was planned vs. discovered. Scope Drift without acknowledgment.
-- **Silent skip Y** → Y is forgotten, surfaces later as a "new" bug, wasting a future audit cycle.
+Worked example (v9.0.1→v9.0.2) in `knowledge/implementation-discovery.md`.
 
-This pattern occurred twice during this skill's own development:
-- v9.0.1 task was "fix Step 3 regex + add undelete" → discovered python3 `IndentationError` in the new code I just wrote (same surface, fixed in v9.0.2)
-- v9.1.0 audit found 5 bugs → while patching, discovered the v9.0.2 phases.md had 2 additional memory/ references I missed in the initial audit (same surface, fixed in same commit)
-
-**Rule**: Do NOT silently fix Y. Do NOT silently skip Y. Either choice disrupts the workflow.
-
-### Protocol
-
-When you discover bug Y while implementing fix for bug X:
-
-1. **STOP** implementation momentarily. Do not race ahead.
-
-2. **DOCUMENT** the discovery immediately — append to `/home/z/my-project/worklog.md`:
-   ```
-   discovery: <Y one-line> | found while: <X one-line> | surface: <same|different> | action: <fix-now|defer>
-   ```
-
-3. **CLASSIFY** using the Same-Surface Test:
-   - **Same surface** (same file, same function, same root cause, same bash block):
-     → **FIX NOW** in the same commit
-     → Update Scope: add Y to Scope IN
-     → Note in delivery report: `Scope Drift: +Y (discovered while fixing X, same surface)`
-   - **Different surface** (different file, different system, different root cause):
-     → **DEFER** to next iteration
-     → Add Y to "Deferred Discoveries" section in delivery report
-     → Log Y to worklog with `next_step: investigate Y in next iteration`
-
-4. **RESUME** implementation with updated scope (if fix-now) or original scope (if defer).
-
-5. **NEVER LOSE TRACK** of the original task. The DELIVER worklog snapshot must include BOTH X and Y status:
-   - X: completed (in this iteration)
-   - Y: completed (fix-now, same commit) OR deferred (next iteration)
-
-### Same-Surface Test Decision Tree
-
-```
-Discovered bug Y while fixing bug X
-         │
-         ├─ Is Y in the same file as X's fix?
-         │    ├─ YES → likely same surface
-         │    └─ NO  → likely different surface (DEFER)
-         │
-         ├─ Is Y's root cause the same as X's root cause?
-         │    ├─ YES → same surface (FIX NOW)
-         │    └─ NO  → different surface (DEFER)
-         │
-         ├─ Does fixing Y require changing code outside X's blast radius?
-         │    ├─ NO  → same surface (FIX NOW)
-         │    └─ YES → different surface (DEFER)
-         │
-         └─ Would deferring Y cause X's fix to fail CI / verification?
-              ├─ YES → same surface (FIX NOW, mandatory)
-              └─ NO  → defer is safe
-```
-
-### Anti-patterns (FORBIDDEN)
-
-- ❌ "I'll just fix Y real quick while I'm here" — no documentation, user sees surprise changes
-- ❌ "Y is small, I'll mention it in the commit message" — commit messages are not delivery reports
-- ❌ "Y is unrelated, I'll skip it" — without logging, Y is forgotten forever
-- ❌ "I found 3 more bugs, let me fix them all" — without classification, scope explodes silently
-
-### Worked example (from this skill's history)
-
-**v9.0.1 → v9.0.2 transition**:
-- Original task: "fix Step 3 broken regex + add undelete step"
-- Discovery: while writing the new `python3 -c` block for Step 3, used multi-line indented python inside single-quoted bash string → `IndentationError`
-- Same-Surface Test: same file (SKILL.md), same bash block (Step 3), same root cause (my new code) → **FIX NOW**
-- Action: rewrote python3 -c as one-liner, pushed as v9.0.2
-- Delivery report Pivot field: "YES — discovered IndentationError while writing the regex fix"
-- Lesson: this protocol did not exist in v9.0.1, so the discovery was handled ad-hoc. v9.2.0 codifies the pattern.
-
-### Worklog entry format (when discovery occurs)
-
-```
 ---
 last_phase: DELIVER
 task: <original task>
@@ -1181,6 +988,32 @@ else
 fi
 ```
 
+#### Worklog Snapshot + L1 Pattern Skeleton (bash-enforced v9.14.0)
+```bash
+# Bash guarantees worklog entry + L1 pattern skeleton at DELIVER
+# LLM fills in [brackets] after bash creates skeleton
+cat >> /home/z/my-project/worklog.md << ST_WL_EOF
+---
+last_phase: DELIVER
+timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+version: v$(grep -oP '^- \*\*version\*\*:\s*\K[0-9.]+' /home/z/my-project/skills/stellar-trails/SKILL.md | head -1)
+task: [LLM fills]
+complexity: [LLM fills]
+task_type: [LLM fills]
+files_modified: [LLM fills]
+phase_trace: IDLE→SPECIFY→PLAN→IMPLEMENT→VERIFY→DELIVER
+ST_WL_EOF
+echo "✓ Worklog skeleton appended (LLM: fill in [brackets] above)"
+# L1 pattern skeleton (bash guarantees template structure)
+echo "## [$(date -u '+%Y-%m-%d')] <domain>: <pattern-name>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
+echo "**Context**: <when applies>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
+echo "**Approach**: <what worked>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
+echo "**Gotcha**: <what to avoid>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
+echo "**Source**: <task>" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
+echo "" >> /home/z/my-project/skills/stellar-trails/knowledge/patterns.md
+echo "✓ L1 pattern skeleton appended (LLM: fill in <brackets>)"
+```
+
 ### When to skip Pre-Push Local Verification
 
 - Documentation-only changes (CHANGELOG.md, README.md) → skip checks 2-6, run 1+7+8
@@ -1210,560 +1043,42 @@ fi
 
 ---
 
-## Proximate Cause Triage (NEW in v9.5.0 — orisinil feature)
+## Proximate Cause Triage (v9.5.0 — detail in `knowledge/proximate-cause.md`)
 
-**Problem this solves**: GLM-5.2 z.ai has a known weakness — when auditing or diagnosing, it tends to trace problems too far down the causal chain, rabbit-holing into deep investigations when the root cause is proximate and simple. This wastes tokens and time, and often loses the user's actual question in the weeds.
+**Q1**: Is candidate within 1 hop of symptom? → YES = prefer
+**Q2**: ≤2 assumptions to explain ALL symptoms? → YES = parsimonious
+**Q3**: Would fixing resolve user's request? → YES = in scope
 
-**Inspiration**: Combines core concepts from two clawhub skills — `occams-razor` (Parsimony Audit: prefer fewest assumptions) and `aana-task-scope-guardrail` (Scope Gate: classify actions, stop when complete) — into a single orisinil protocol integrated into stellar-trails workflow. **Not a wrapper** — this is a native feature with its own decision tree, tuned for the proximate-cause failure mode.
+**Scope Gate**: in_scope → proceed | clarification_needed → ASK | out_of_scope → STOP
 
-### When to Apply
-
-**Mandatory trigger** in these phases:
-- **SPECIFY**: after identifying the problem, BEFORE writing problem-spec
-- **VERIFY**: when tracing a defect, BEFORE going deeper than 2 levels
-- **Recovery**: when classifying bug vs wrong approach
-
-**Optional trigger** (LLM should self-check):
-- Whenever internal reasoning exceeds 3 "why" levels
-- Whenever audit scope expands beyond original request
-- Whenever a hypothesis requires >2 unsupported assumptions
-
-### The Proximate Cause Test
-
-Before going deeper into investigation, answer these 3 questions:
-
-**Q1: Is the candidate cause within 1 hop of the symptom?**
-- YES → strong proximate candidate, prefer this first
-- NO → far cause, only investigate if Q2 fails
-
-**Q2: Does the candidate explain ALL observed symptoms with ≤2 assumptions?**
-- YES → parsimonious, prefer this
-- NO → needs too many assumptions, defer (likely over-engineering)
-
-**Q3: Would fixing this candidate resolve the user's actual request?**
-- YES → in scope, fix it
-- NO → out of scope, log to "Deferred Discoveries" and stop
-
-### Decision Tree
-
-```
-Symptom observed
-   │
-   ├─ Q1: Is candidate within 1 hop of symptom?
-   │    ├─ YES + Q2 ≤2 assumptions + Q3 fixes user request
-   │    │    → FIX NOW (proximate, parsimonious, in-scope)
-   │    │
-   │    ├─ YES but Q2 >2 assumptions
-   │    │    → Look for SIMPLER proximate cause before going deeper
-   │    │
-   │    └─ NO (far cause)
-   │         ├─ Q3 still in scope?
-   │         │    ├─ YES → investigate, but time-box (max 1 deeper level)
-   │         │    └─ NO  → DEFER (out of scope, log it)
-   │         └─ Q2 needs >3 assumptions?
-   │              → STOP. Likely over-engineering. Re-state problem to user.
-```
-
-### Scope Gate (from aana-task-scope-guardrail, integrated)
-
-Before each investigation step, classify the action:
-
-| Category | Action |
-|---|---|
-| `in_scope` | Directly requested by user → proceed |
-| `necessary_support` | Required to complete request → proceed |
-| `clarification_needed` | Ambiguous boundary → ASK user before continuing |
-| `optional_followup` | Useful but not required → mention briefly, do NOT do |
-| `out_of_scope` | Unrelated/premature → DO NOT do, log to worklog |
-| `stop` | Request is complete → STOP, do not keep acting |
-
-**Hard rule**: if proposed action is `out_of_scope` OR request is `stop`, you MUST stop. Continuing is a correctness bug.
-
-### Parsimony Audit (from occams-razor, integrated)
-
-When multiple competing hypotheses exist for a symptom:
-
-```
-# Parsimony Audit: <symptom>
-## Candidates:
-  A: <hypothesis 1>  B: <hypothesis 2>  C: <hypothesis 3>
-## Fit check:
-  A fits all evidence? <yes/no>  B? <yes/no>  C? <yes/no>
-## Assumption load (count unsupported assumptions, NOT words):
-  A: <list> → N assumptions
-  B: <list> → N assumptions
-  C: <list> → N assumptions
-## Proximate check:
-  A within 1 hop? <yes/no>  B? <yes/no>  C? <yes/no>
-## Preferred: <fewest assumptions + most proximate>
-## Over-shave check: <preferred still fits all evidence?>
-## What would overturn this: <distinguishing evidence>
-```
-
-**Key rule**: parsimony counts **unsupported assumptions**, not words. "It's the network" (5 words) posits 1 unobserved failure — high assumption load. "Cache TTL expired at 14:03, as logs show" (10 words) assumes 0 unsupported — low load. Prefer the second.
-
-### Anti-patterns (FORBIDDEN)
-
-- ❌ "Let me trace this deeper to be sure" — if proximate cause found, STOP. Going deeper without evidence of misdiagnosis is scope creep.
-- ❌ "There might be a hidden root cause" — without a specific symptom that the proximate cause does NOT explain, this is speculation, not investigation.
-- ❌ "I'll fix this AND investigate the deeper cause" — fixing + investigating = two tasks. User asked for one. Log the deeper investigation as `optional_followup`.
-- ❌ "Let me check 5 more files just in case" — this is `out_of_scope` unless user asked for full audit. Proximate cause + parsimony audit is sufficient.
-- ❌ Applying Parsimony Audit when only 1 hypothesis exists — Occam's Razor chooses AMONG candidates. With 1 candidate, no choice to make.
-
-### Worked Example
-
-**Scenario**: User reports "Step 3 activation fails with '✗ GATE FAILED'".
-
-**Wrong (deep rabbit hole)**:
-1. Investigate Step 3 bash block
-2. Check clawhub version
-3. Inspect sha256 implementation
-4. Investigate SKILL.md encoding
-5. Check Linux filesystem layer
-6. ... (10 levels deep, never finds it)
-
-**Right (Proximate Cause Triage)**:
-1. Symptom: `✗ GATE FAILED` means `EXPECTED_TOKEN != ACTUAL_TOKEN`
-2. Q1: Is candidate within 1 hop? YES — token mismatch is directly in Step 1 bash
-3. Q2: Does it explain all symptoms with ≤2 assumptions?
-   - Assumption 1: Step 1 bash didn't run (so token not written)
-   - Assumption 2: OR Step 1 ran but wrote wrong hash
-   - → 2 assumptions, parsimonious
-4. Q3: Would fixing this resolve user's request? YES
-5. Action: check if `/tmp/st-active` exists. If missing → Step 1 was skipped. If present but wrong → recompute hash.
-6. **STOP** at first resolution. Do not investigate deeper unless fix fails.
-
-### Integration with existing protocols
-
-- **Implementation Discovery Protocol**: Proximate Cause Triage informs the Same-Surface Test. If discovered bug Y is within 1 hop of bug X (proximate), likely same surface → fix-now.
-- **Pivot**: when classifying bug vs wrong approach, run Proximate Cause Test first. If proximate cause exists, it's a bug (fix). If no proximate cause after 2 hops, it's likely wrong approach (pivot).
-- **Recovery**: Step 1 (Stop) + Step 2 (Classify) must include Proximate Cause Triage before proceeding.
+Worked example + Parsimony Audit template in `knowledge/proximate-cause.md`.
 
 ---
 
-## Inline Content Retrieval (NEW in v9.5.0 — orisinil feature)
+## Inline Content Retrieval (v9.5.0 — reference in `knowledge/inline-retrieval.md`)
 
-**Problem this solves**: stellar-trails SADC section previously mandated `Skill(command="crawl4ai")` for content extraction. This creates external dependency — if crawl4ai is not installed, broken, or its API changes, SADC fails. User explicitly requested removing this reliance.
-
-**Solution**: orisinil inline content retrieval using sandbox-native tools (`curl` + `python3`). No external skill dependency. Simpler, more reliable, fully under stellar-trails control.
-
-### When to Use
-
-Replace `Skill(command="crawl4ai")` and `Skill(command="web-reader")` calls with this inline protocol in:
-- **SADC** (Standard/Complex tier): extracting content from top URLs returned by web-search
-- **VERIFY**: pulling live doc content to confirm claims
-- Any phase needing web page text extraction
-
-### The Retrieval Protocol
-
-**Step 1: Fetch with curl** (sandbox-native, no Python dependency)
-```bash
-# Fetch URL, follow redirects, set user-agent, 10s timeout, capture to file
-URL="<url>"
-OUTFILE="/tmp/st-retrieval-$(echo "$URL" | sha256sum | cut -c1-8).html"
-curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE"
-HTTP_STATUS=$(curl -sSL -m 10 -o /dev/null -w "%{http_code}" "$URL")
-[ "$HTTP_STATUS" = "200" ] || { echo "✗ Retrieval failed: HTTP $HTTP_STATUS"; exit 1; }
-echo "✓ Fetched $(stat -c%s "$OUTFILE") bytes from $URL"
-```
-
-**Step 2: Extract text with python3** (using only stdlib `html.parser`)
-```bash
-python3 << 'PYEOF'
-import sys, re, html
-from html.parser import HTMLParser
-
-class TextExtractor(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.text = []
-        self.skip = False  # skip script/style/nav/footer
-        self.skip_tags = {'script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript'}
-        self.title = ''
-        self.in_title = False
-
-    def handle_starttag(self, tag, attrs):
-        if tag in self.skip_tags:
-            self.skip = True
-        if tag == 'title':
-            self.in_title = True
-        if tag in ('h1','h2','h3','h4','h5','h6','p','li','td','th','div','section','article','pre','code','blockquote'):
-            self.text.append('\n')  # block-level: newline before
-
-    def handle_endtag(self, tag):
-        if tag in self.skip_tags:
-            self.skip = False
-        if tag == 'title':
-            self.in_title = False
-        if tag in ('p','li','div','section','article','pre','blockquote'):
-            self.text.append('\n')  # block-level: newline after
-
-    def handle_data(self, data):
-        if self.skip:
-            return
-        if self.in_title:
-            self.title += data
-        text = data.strip()
-        if text:
-            self.text.append(text)
-
-with open(sys.argv[1], 'r', encoding='utf-8', errors='ignore') as f:
-    content = f.read()
-
-parser = TextExtractor()
-parser.feed(content)
-result = ' '.join(parser.text)
-# Collapse whitespace
-result = re.sub(r'\s+', ' ', result)
-result = re.sub(r' \n ', '\n', result)
-result = re.sub(r'\n{3,}', '\n\n', result)
-# Trim to first 3000 chars (SADC needs summary, not full page)
-result = result[:3000]
-if parser.title:
-    print(f"# {parser.title.strip()}\n")
-print(result)
-PYEOF
-```
-
-**Step 3: Truncate to ≤500 words for SADC summary**
-```bash
-# After extraction, truncate to 500 words for SADC
-TEXT_FILE="${OUTFILE%.html}.txt"
-python3 -c "
-import sys
-text = sys.stdin.read()
-words = text.split()[:500]
-print(' '.join(words))
-" < "$TEXT_FILE" > "${TEXT_FILE}.truncated"
-echo "✓ Extracted $(wc -w < "${TEXT_FILE}.truncated") words to ${TEXT_FILE}.truncated"
-```
-
-### When to Use Inline vs External Skill
-
-| Situation | Use |
-|---|---|
-| Static HTML page, public URL | **Inline** (this protocol) |
-| Page requires JavaScript rendering | `agent-browser` skill (rendered extraction) |
-| Page behind authentication | User-provided content (skip retrieval) |
-| Page returns non-HTML (PDF, JSON, etc) | `curl` + appropriate parser inline |
-| Bulk crawl (10+ pages) | Loop the inline protocol, OR use crawl4ai if installed |
-
-**Default**: use inline. Only fall back to external skill if inline fails (JS rendering needed, etc.).
-
-### Why Inline Is Better Than crawl4ai Dependency
-
-| Aspect | crawl4ai (external) | Inline (orsinil) |
-|---|---|---|
-| Dependency | Requires skill installed + Python package | None (curl + python3 stdlib) |
-| Failure modes | Package not installed, API changes, async issues | curl fails (network), python3 fails (parsing) |
-| Speed | AsyncWebCrawler startup overhead | curl ~1s + python3 ~0.1s |
-| Control | External skill controls behavior | stellar-trails controls everything |
-| Token cost | Loads crawl4ai SKILL.md (~2K tokens) into context | 0 tokens — protocol is in stellar-trails SKILL.md |
-| Maintenance | Dependent on crawl4ai updates | Self-maintained, version-controlled with stellar-trails |
-
-### Anti-patterns (FORBIDDEN)
-
-- ❌ "I'll just invoke crawl4ai, it's easier" — no. User explicitly removed this reliance. Use inline protocol.
-- ❌ "Let me fetch 20 pages to be thorough" — Scope Gate says `out_of_scope` unless user asked for bulk crawl. SADC needs 3-5 top URLs, not 20.
-- ❌ "The inline extraction missed some content, let me use crawl4ai" — first try `agent-browser` (also installed) for JS rendering. Only escalate to crawl4ai as last resort.
-- ❌ "I'll skip retrieval and just use my training knowledge" — SADC mandate exists for a reason. If retrieval fails, state explicitly "could not retrieve, using training knowledge" — do not silently skip.
-
-### Integration with SADC
-
-SADC section (Standard/Complex tier) now reads:
-> BEFORE writing the problem specification, the **main agent** invokes `Skill(command="web-search")` to find existing solutions, then uses the **Inline Content Retrieval** protocol (above) to extract content from top 3-5 URLs → ≤500-word summary.
-
-This removes the `Skill(command="crawl4ai")` dependency. web-search is still external (it's the search API, not extraction), but extraction is now inline.
-
-### Worked Example
-
-**Task**: "Build a PDF report — SADC required"
-
-```bash
-# 1. web-search returns 5 URLs (still external skill)
-# 2. Inline retrieval for top 3 URLs:
-for URL in "$URL1" "$URL2" "$URL3"; do
-  OUTFILE="/tmp/st-retrieval-$(echo "$URL" | sha256sum | cut -c1-8).html"
-  curl -sSL -m 10 -A "Mozilla/5.0 (compatible; StellarTrails/9.5)" "$URL" -o "$OUTFILE"
-  # ... extract text via python3 (Step 2 above) ...
-  # ... truncate to 500 words (Step 3 above) ...
-done
-# 3. Summarize: combine 3 truncated files into ≤500-word SADC summary
-cat /tmp/st-retrieval-*.truncated | python3 -c "
-import sys
-text = sys.stdin.read()
-words = text.split()[:500]
-print(' '.join(words))
-"
-```
+Use curl + python3 stdlib for web content extraction. Protocol detail moved to `knowledge/inline-retrieval.md` in v9.14.0. Summary:
+1. Fetch with curl (10s timeout, user-agent)
+2. Extract text with python3 html.parser (skip script/style/nav)
+3. Truncate to 500 words for SADC summary
 
 ---
 
-## GitHub Operations Protocol (NEW in v9.6.0 — adapted from @steipete/github)
+## GitHub Operations Protocol (v9.6.0 — adapted from @steipete/github)
 
-**Inspiration**: Adapted from `@steipete/github` clawhub skill (v1.0.0, MIT-0 license) by @steipete. The original skill documents `gh` CLI patterns for PR checks, workflow runs, and API queries. **Not a wrapper** — adapted to stellar-trails' curl-based approach because `gh` CLI is not available in z.ai sandbox.
+curl + PAT (gh CLI not available). Prerequisites: PAT at `/home/z/my-project/upload/PAT`. Never print PAT.
 
-**Why adapt**: stellar-trails already uses GitHub API for CI polling (Steps 3, 4 in activation), release management (Pre-Push Local Verification), and tag pushing. Currently these are ad-hoc curl calls scattered across phases. Codifying them into a protocol makes GitHub operations consistent, reusable, and safer.
+### Git Identity Setup (MANDATORY before git commit/push)
+Fetch owner from GitHub API → override /start.sh Z User config → recreate ~/.git-credentials → export GIT_AUTHOR_*/GIT_COMMITTER_* env vars. Run every session (credentials wiped on reset).
 
-**License attribution**: Original @steipete/github skill is MIT-0 (no attribution required). Adapted patterns retained as orisinil curl-based implementation.
+### Key Operations (detail: use curl + python3 for jq-style filtering)
+1. **List workflow runs**: `curl -H "Authorization: Bearer $TOKEN" "https://api.github.com/repos/$REPO/actions/runs?per_page=10" | python3 -c "..."`
+2. **Fetch failed logs**: `curl -L -o /tmp/gh-logs.zip "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/logs"` then `unzip`
+3. **PR checks**: GET `/repos/$REPO/commits/$SHA/check-runs`
+4. **API queries**: curl + python3 (jq not installed)
 
-### Why curl + PAT instead of `gh` CLI
-
-| Aspect | `gh` CLI (original skill) | curl + PAT (stellar-trails adaptation) |
-|---|---|---|
-| Availability | Not installed in z.ai sandbox | curl is sandbox-native |
-| Auth | `gh auth login` (interactive browser flow) | PAT in `/home/z/my-project/upload/PAT` (already configured) |
-| Token storage | gh's own credential store | File-based, user-controlled |
-| Scriptability | Subprocess invocation | Native bash, no subprocess overhead |
-| Portability | Requires gh install | Works anywhere curl exists |
-
-### Prerequisites
-
-Before using any GitHub Operations command:
-
-1. **PAT must be present** at `/home/z/my-project/upload/PAT` (user-managed, persistent across sessions)
-2. **Validate PAT** before first use:
-   ```bash
-   GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-   HTTP=$(curl -sS -m 10 -o /tmp/gh_user.json -w "%{http_code}" \
-     -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user)
-   [ "$HTTP" = "200" ] || { echo "✗ PAT invalid or expired (HTTP $HTTP)"; exit 1; }
-   python3 -c "import json; d=json.load(open('/tmp/gh_user.json')); print(f'✓ Authenticated as: {d.get(\"login\")}')"
-   ```
-3. **Never print PAT to logs** — always use `tr -d '[:space:]'` to strip, never `echo $GH_TOKEN`
-
-### Git Identity Setup (NEW in v9.9.0 — fix 3 git bugs)
-
-**Problem**: z.ai `/start.sh` sets global git config to `user.email=z@container` `user.name=Z User`. This causes 3 bugs:
-1. Commits attributed to "Z User" (local UUID identity) instead of GitHub token owner
-2. `~/.git-credentials` is in `$HOME` (`/home/z/`), NOT in `/home/z/my-project/` → **not in repo.tar** → wiped on session reset → `git push` fails with auth error
-3. `git -c user.email=X -c user.name=Y commit` sets author but committer falls back to global config (Z User)
-
-**Solution**: Run this setup BEFORE any `git commit` or `git push`. This overrides /start.sh's Z User config with the PAT owner's real GitHub identity.
-
-```bash
-# === Git Identity Setup (MANDATORY before any git commit/push) ===
-# Run this once per session, before first git operation.
-
-GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-
-# 1. Fetch token owner identity from GitHub API
-OWNER_JSON=$(curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user)
-OWNER_LOGIN=$(echo "$OWNER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('login',''))")
-OWNER_NAME=$(echo "$OWNER_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('name') or json.load(sys.stdin).get('login',''))")
-OWNER_EMAIL="${OWNER_LOGIN}@users.noreply.github.com"
-
-# 2. Override /start.sh's Z User config with token owner identity
-#    This fixes Bug 3: author AND committer now use owner identity
-git config --global user.email "$OWNER_EMAIL"
-git config --global user.name "$OWNER_NAME"
-
-# 3. Re-create ~/.git-credentials (NOT persistent — wiped on session reset)
-#    This fixes Bug 2: git push auth failure after session reset
-git config --global credential.helper store
-echo "https://${OWNER_LOGIN}:${GH_TOKEN}@github.com" > ~/.git-credentials
-chmod 600 ~/.git-credentials
-
-# 4. Export GIT_AUTHOR_* and GIT_COMMITTER_* env vars for double-ensure
-#    This fixes Bug 1: even if global config somehow reverts, env vars take priority
-export GIT_AUTHOR_NAME="$OWNER_NAME"
-export GIT_AUTHOR_EMAIL="$OWNER_EMAIL"
-export GIT_COMMITTER_NAME="$OWNER_NAME"
-export GIT_COMMITTER_EMAIL="$OWNER_EMAIL"
-
-# 5. Verify
-echo "✓ Git identity configured:"
-echo "  user.name:  $(git config --global user.name)"
-echo "  user.email: $(git config --global user.email)"
-echo "  credentials: $([ -f ~/.git-credentials ] && echo '✓ present' || echo '✗ MISSING')"
-echo "  author env:  GIT_AUTHOR_NAME=$GIT_AUTHOR_NAME"
-echo "  committer env: GIT_COMMITTER_NAME=$GIT_COMMITTER_NAME"
-```
-
-**Why this is needed every session**:
-- `/start.sh` runs at session start → sets Z User globally
-- `~/.git-credentials` is in `$HOME` (`/home/z/`) → NOT in `/home/z/my-project/` → NOT in `repo.tar` → wiped on reset
-- `GIT_AUTHOR_*` / `GIT_COMMITTER_*` env vars don't persist across sessions
-
-**Anti-patterns (FORBIDDEN)**:
-- ❌ "git -c flags are enough" — NO. `-c` sets per-command config, but committer can still fall back to global Z User. Env vars are the only reliable override.
-- ❌ "Credentials persist from last session" — NO. `~/.git-credentials` is in `$HOME`, not in `repo.tar`. Every session reset wipes it.
-- ❌ "Skip this, push will work" — NO. Without credentials, push fails with 403. Without identity override, commits show as Z User.
-
-**Integration with activation**: This setup should run as part of Step 2 (popup server) or immediately after Step 5, BEFORE any task that involves git commit/push. If a task doesn't involve git, this setup can be skipped.
-
-### Operation 1: PR CI Status Check
-
-**Original (@steipete/github)**: `gh pr checks 55 --repo owner/repo`
-**Adapted**: curl GitHub API for check runs on a PR's HEAD commit.
-
-```bash
-GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-REPO="owner/repo"
-PR_NUMBER=55
-
-# Get PR HEAD SHA
-PR_JSON=$(curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
-  "https://api.github.com/repos/$REPO/pulls/$PR_NUMBER")
-HEAD_SHA=$(echo "$PR_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('head',{}).get('sha',''))")
-echo "PR #$PR_NUMBER HEAD: $HEAD_SHA"
-
-# Get check runs for that SHA
-curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
-  "https://api.github.com/repos/$REPO/commits/$HEAD_SHA/check-runs" \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-for cr in d.get('check_runs', []):
-    print(f\"  {cr.get('name')}: {cr.get('status')}/{cr.get('conclusion') or '-'}\")"
-```
-
-### Operation 2: List Recent Workflow Runs
-
-**Original**: `gh run list --repo owner/repo --limit 10`
-**Adapted**: curl GitHub Actions API.
-
-```bash
-GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-REPO="owner/repo"
-
-curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
-  "https://api.github.com/repos/$REPO/actions/runs?per_page=10" \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print(f\"total_count: {d.get('total_count')}\")
-for r in d.get('workflow_runs', [])[:10]:
-    print(f\"  #{r.get('run_number')} | {r.get('name')} | {r.get('head_branch')} | {r.get('status')}/{r.get('conclusion') or '-'} | {r.get('created_at')}\")
-    print(f\"    URL: {r.get('html_url')}\")"
-```
-
-### Operation 3: View Failed Step Logs
-
-**Original**: `gh run view <run-id> --repo owner/repo --log-failed`
-**Adapted**: curl jobs endpoint, identify failed steps, fetch logs (requires auth + logs API which needs Accept header).
-
-```bash
-GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-REPO="owner/repo"
-RUN_ID="<run-id>"
-
-# Get jobs in the run, find failed steps
-curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
-  "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/jobs" \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-for j in d.get('jobs', []):
-    print(f\"JOB: {j.get('name')} - {j.get('conclusion')}\")
-    for s in j.get('steps', []):
-        if s.get('conclusion') == 'failure':
-            print(f\"  FAILED STEP: {s.get('name')}\")
-            print(f\"    started: {s.get('started_at')} | completed: {s.get('completed_at')}\")"
-
-# Download full logs zip (authenticated endpoint)
-curl -sS -L -m 60 -H "Authorization: Bearer $GH_TOKEN" \
-  -o "/tmp/gh-logs-$RUN_ID.zip" \
-  "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/logs"
-echo "Logs saved to /tmp/gh-logs-$RUN_ID.zip"
-unzip -o -q "/tmp/gh-logs-$RUN_ID.zip" -d "/tmp/gh-logs-$RUN_ID/"
-# Find the failed step log file
-find "/tmp/gh-logs-$RUN_ID/" -name "*Publish*" -o -name "*failed*" | head -5
-```
-
-### Operation 4: API Queries with jq-style Filtering
-
-**Original**: `gh api repos/owner/repo/pulls/55 --jq '.title, .state, .user.login'`
-**Adapted**: curl + python3 (jq may not be installed; python3 is always available).
-
-```bash
-GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-REPO="owner/repo"
-
-# Get PR with specific fields (jq-style via python3)
-curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
-  "https://api.github.com/repos/$REPO/pulls/55" \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print(f\"title: {d.get('title')}\")
-print(f\"state: {d.get('state')}\")
-print(f\"user: {d.get('user',{}).get('login')}\")"
-
-# List issues with specific fields (original: --json number,title --jq '.[] | "\(.number): \(.title)"')
-curl -sS -m 10 -H "Authorization: Bearer $GH_TOKEN" \
-  "https://api.github.com/repos/$REPO/issues?state=open&per_page=10" \
-  | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-for i in d:
-    print(f\"{i.get('number')}: {i.get('title')}\")"
-```
-
-### Risk Mitigation Checklist (from @steipete/github skill-card.md)
-
-Before running ANY GitHub operation, classify the action:
-
-| Action class | Examples | Approval required? |
-|---|---|---|
-| **Read** | GET issues, PRs, runs, logs, check-runs | NO (safe) |
-| **Write** | POST comments, create PRs, push tags/commits | YES (user explicit) |
-| **Modify** | PATCH PRs, issues, repo settings | YES (user explicit) |
-| **Delete** | DELETE branches, comments, releases | YES (user explicit + confirm) |
-| **API mutation** | `gh api -X POST/PATCH/DELETE` equivalent | YES (user explicit) |
-
-**Hard rule**: any non-GET request to GitHub API requires user explicit approval. State the exact mutation (URL + payload) before executing. Silent mutations are correctness bugs.
-
-**Auth scope check** (run once per session, before first write op):
-```bash
-GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-curl -sSI -m 10 -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user \
-  | grep -i "x-oauth-scopes:" | head -1
-# Verify scopes include 'repo' for write operations, 'workflow' for workflow file changes
-```
-
-### Integration with stellar-trails phases
-
-- **Pre-Push Local Verification (v9.2.0)**: uses Operation 1 (PR checks) + Operation 2 (run list) before push, Operation 3 (failed logs) if CI fails
-- **Pivot (Recovery)**: when CI fails, use Operation 3 to fetch failed step logs → inform Pivot classification (bug vs wrong approach)
-- **Proximate Cause Triage (v9.5.0)**: failed step logs are proximate evidence — apply Proximate Cause Test to the failure, don't rabbit-hole into unrelated logs
-- **Step 3 activation**: uses `clawhub inspect` (not GitHub API) — different concern, do not conflate
-
-### Anti-patterns (FORBIDDEN)
-
-- ❌ "Let me just call gh CLI" — `gh` is not installed in sandbox. Use curl + PAT.
-- ❌ "I'll print the PAT for debugging" — NEVER. Use `tr -d '[:space:]'` and never echo $GH_TOKEN.
-- ❌ "Let me fetch all 1000 runs to be thorough" — Scope Gate says `out_of_scope`. 10 most recent is sufficient for diagnosis.
-- ❌ "I'll do a POST to fix the issue" — write/modify/delete requires user explicit approval. State the mutation first.
-- ❌ "Logs are too big, let me skip them" — failed step logs are critical evidence. Fetch + extract the relevant section, do not skip.
-
-### Worked Example
-
-**Scenario**: CI run #28982551045 failed at "Publish to ClawHub" step.
-
-**Wrong (deep rabbit hole)**:
-1. Re-run entire CI
-2. Check clawhub.ai status page
-3. Investigate npm registry
-4. Inspect stellar-trails SKILL.md encoding
-5. ... (10 levels, never finds root cause)
-
-**Right (GitHub Operations Protocol + Proximate Cause Triage)**:
-1. Use Operation 3 to fetch failed step logs:
-   ```bash
-   GH_TOKEN=$(tr -d '[:space:]' < /home/z/my-project/upload/PAT)
-   curl -sS -L -m 60 -H "Authorization: Bearer $GH_TOKEN" \
-     -o /tmp/gh-logs.zip \
-     "https://api.github.com/repos/hoshiyomiX/stellar-trails/actions/runs/28982551045/logs"
-   unzip -o -q /tmp/gh-logs.zip -d /tmp/gh-logs/
-   cat "/tmp/gh-logs/build-and-release/10_Publish to ClawHub.txt"
-   ```
-2. Apply Proximate Cause Triage:
-   - Q1: Is "IndentationError" within 1 hop of "Publish failed"? YES (error in the bash block being run)
-   - Q2: Does it explain all symptoms with ≤2 assumptions? YES (1 assumption: my new python3 -c code has wrong indentation)
-   - Q3: Would fixing this resolve user's request? YES
-   - → FIX NOW: rewrite python3 -c as one-liner, push new tag
-3. **STOP**. Do not investigate clawhub.ai or npm registry — out_of_scope.
+**Risk**: Read=NO approval. Write/Modify/Delete=YES explicit. Never silent mutations.
+**Anti-patterns**: ❌ print PAT ❌ fetch all runs ❌ skip logs ❌ POST without approval
 
 ---
 
@@ -2039,162 +1354,26 @@ For interactive web development tasks (Next.js, UI components, dashboards), impl
 
 ---
 
-## Layered Memory Protocol (NEW in v9.11.0 — adapted from TencentDB-Agent-Memory)
+## Layered Memory Protocol (v9.11.0 — detail in `knowledge/memory-protocol.md`)
 
-**Inspiration**: Adapted from [TencentDB-Agent-Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory) (15K stars, MIT license) by Tencent Cloud. The original project implements a team-level memory hub with 4 memory assets (Chat Memory, Skill, LLM-Wiki, Code-Graph) and layered memory (L0-L3). **Not a wrapper** — adapted to stellar-trails' sandbox-native, no-external-dependency constraints.
+| Layer | File | When written |
+|---|---|---|
+| L0 Task | worklog.md | DELIVER (existing) |
+| L1 Pattern | knowledge/patterns.md | DELIVER (bash skeleton appended) |
+| L2 Scenario | knowledge/scenarios.md | DELIVER (auto at ≥5 L1 per domain) |
+| L3 Profile | knowledge/user-profile.md | DELIVER (auto at ≥3 same-decision) |
 
-**Problem this solves**: stellar-trails worklog is flat (L0 only — raw task state). Across 20+ sessions, reusable patterns are lost. Each session starts from scratch, repeating mistakes that were already solved. The original TencentDB project solves this with vector search + Docker + team-level sharing — too heavy for z.ai sandbox. This adaptation uses structured text files (no vector DB, no Docker).
-
-### Layered Memory Architecture
-
-| Layer | What it stores | stellar-trails file | When written |
-|---|---|---|---|
-| **L0 Task** | Raw task state (what was done, files modified, outcome) | `worklog.md` (existing) | DELIVER phase (existing) |
-| **L1 Pattern** | Reusable facts extracted from task (approach that worked, gotchas, shortcuts) | `knowledge/patterns.md` (NEW) | DELIVER phase (NEW extraction) |
-| **L2 Scenario** | Project-level context blocks (accumulated L1 patterns grouped by project/domain) | `knowledge/scenarios.md` (NEW) | DELIVER phase (NEW, when L1 count ≥5 for same domain) |
-| **L3 Profile** | Stable user preferences, working style, recurring decisions | `knowledge/user-profile.md` (NEW) | DELIVER phase (NEW, when pattern repeats ≥3 times) |
-
-### L1 Pattern Extraction (at DELIVER phase)
-
-After each Standard/Complex task, extract reusable knowledge into `knowledge/patterns.md`:
-
-```bash
-# === L1 Pattern Extraction (NEW in v9.11.0) ===
-# Run at DELIVER phase, after worklog snapshot.
-# Extract: what approach worked, what went wrong, what was learned.
-PATTERNS_FILE="/home/z/my-project/skills/stellar-trails/knowledge/patterns.md"
-if [ ! -f "$PATTERNS_FILE" ]; then
-  echo "# Pattern Library (L1 Memory)" > "$PATTERNS_FILE"
-  echo "" >> "$PATTERNS_FILE"
-  echo "Auto-extracted reusable patterns from stellar-trails tasks." >> "$PATTERNS_FILE"
-  echo "Adapted from TencentDB-Agent-Memory L1 Atom concept." >> "$PATTERNS_FILE"
-  echo "" >> "$PATTERNS_FILE"
-  echo "---" >> "$PATTERNS_FILE"
-fi
-# LLM appends pattern entry (not bash — LLM must think + write):
-# Format:
-# ## [YYYY-MM-DD] <domain>: <pattern-name>
-# **Context**: <when this pattern applies>
-# **Approach**: <what worked>
-# **Gotcha**: <what to avoid>
-# **Source**: <task that produced this pattern>
-```
-
-**LLM responsibility**: The LLM must actively extract patterns, not just append task state. Ask: "What did I learn from this task that would help next time?"
-
-### L2 Scenario Accumulation (auto-triggered)
-
-When L1 patterns accumulate ≥5 entries for the same domain (e.g., "git", "ci", "clawhub", "sandbox"), group them into `knowledge/scenarios.md`:
-
-```markdown
-# Scenario: Git Identity Issues
-## Patterns:
-- [2026-07-09] git: Z User override requires env vars, not just config
-- [2026-07-20] git: ~/.git-credentials not in repo.tar, wiped each session
-- [2026-07-26] git: Auto Git Identity Setup in Step 1 solves both
-## Composite insight: Always run Git Identity Setup at session start if PAT exists
-```
-
-### L3 User Profile (auto-triggered)
-
-When the same decision pattern repeats ≥3 times across sessions, extract to `knowledge/user-profile.md`:
-
-```markdown
-# User Profile (L3 Memory)
-## Preferences:
-- Prefers direct Edit tool over patch files ("junk")
-- PAT kept permanently at /home/z/my-project/upload/PAT
-- Wants version bumps on every change, even small fixes
-- Prefers Indonesian language for explanations, English for code
-```
-
-### Knowledge On-Demand Loading (Step 5 update)
-
-Instead of always loading ALL knowledge files at Step 5, load only relevant ones:
-
-| Task type | Load |
-|---|---|
-| Coding (git/CI) | `knowledge/zai-sandbox.md` + `knowledge/error-patterns.md` + `knowledge/patterns.md` (L1) |
-| Coding (web dev) | `knowledge/zai-sandbox.md` + `knowledge/architecture.md` |
-| Document | `knowledge/conventions.md` + `knowledge/patterns.md` (L1) |
-| Audit/Diagnosis | `knowledge/error-patterns.md` + `knowledge/patterns.md` (L1) + `knowledge/scenarios.md` (L2) |
-| Continuation (same domain) | Only `knowledge/scenarios.md` (L2) for that domain |
-| New session (cold start) | `knowledge/user-profile.md` (L3) + `knowledge/patterns.md` (L1) for bootstrap |
-
-**Rule**: Never load ALL knowledge files unless explicitly needed. Context budget is finite — loading irrelevant knowledge wastes tokens.
-
-### Error Pattern Accumulation
-
-`knowledge/error-patterns.md` (existing file, currently static) should grow dynamically. At DELIVER, if task encountered an error that was fixed:
-
-```bash
-# === Error Pattern Accumulation (NEW in v9.11.0) ===
-ERRORS_FILE="/home/z/my-project/skills/stellar-trails/knowledge/error-patterns.md"
-# LLM appends error entry:
-# Format:
-# ## [YYYY-MM-DD] <error-type>
-# **Symptom**: <what user observed>
-# **Root cause**: <proximate cause, 1 hop>
-# **Fix**: <what resolved it>
-# **Prevention**: <how to avoid next time>
-```
-
-### Anti-patterns (FORBIDDEN)
-
-- ❌ "Just append to worklog, patterns are extra work" — NO. Without L1 extraction, each session repeats mistakes. The 30 seconds of pattern extraction saves hours of re-discovery.
-- ❌ "Load all knowledge files at Step 5 just in case" — NO. Context budget is finite. Load only what's relevant to the task type.
-- ❌ "Skip L2/L3 — they're too complex" — NO. L2/L3 are auto-triggered, not manual. The LLM doesn't decide when to create them — the count threshold triggers them.
-- ❌ "Use vector search instead" — NO. Vector search needs external DB + embedding model. Sandbox-native text search (grep) is sufficient for the pattern volumes stellar-trails generates.
-
-### Integration with existing protocols
-
-- **Worklog Continuity Protocol**: L0 (existing worklog) unchanged. L1-L3 are new files that supplement, not replace.
-- **DELIVER phase**: After worklog snapshot, run L1 Pattern Extraction. If L1 count for domain ≥5, also update L2. If decision pattern repeats ≥3, also update L3.
-- **Step 5 activation**: Knowledge on-demand loading replaces "load all knowledge files" — only load relevant subset.
-- **Proximate Cause Triage**: L1 patterns feed into the Parsimony Audit — past patterns are evidence of what worked.
-- **Pre-Push Local Verification**: No change — pattern files are in `knowledge/` directory, included in skill zip.
-
-### What was NOT adapted (out of scope)
-
-| TencentDB feature | Why not adapted |
-|---|---|
-| Vector search (BM25 + embedding) | Needs external DB + embedding model — not sandbox-native |
-| Team-level sharing (ACL, multi-agent) | stellar-trails is single-agent in z.ai sandbox |
-| Code-Graph (codebase indexer) | Needs AST parser + graph DB — too heavy |
-| Docker deployment | Not sandbox-native |
-| Async pipeline (background processing) | No background process support in z.ai sandbox |
-| L0 Conversation storage | Conversation history is managed by z.ai platform, not skill |
-
-### Honest assessment
-
-This adaptation captures the **concept** of layered memory (L0-L3) and **structured knowledge accumulation**, but NOT the **retrieval quality** of vector search. stellar-trails' pattern retrieval is grep-based — sufficient for ~50-100 patterns, but won't scale to thousands. For the expected pattern volume (1-2 per session, ~50 per 25 sessions), text search is adequate.
-
-**Expected impact**: After 10 sessions, `knowledge/patterns.md` will have ~15-20 entries. Next session's Step 5 loads these patterns → LLM avoids repeating past mistakes → faster task completion, fewer CI cycles wasted on known bugs.
+Detail (extraction format, on-demand loading table, anti-patterns) in `knowledge/memory-protocol.md`.
 
 ---
 
 ## Limitations
 
-This framework is text in a skill file. It relies on the LLM reading it to follow instructions. 12 enforcement vectors across 3 tiers (Legacy Text E1-E3, Pre-Tool Gate E4-E6, Sandbox-Native E7-E11, Exit Code E12) shift compliance from prose to verifiable artifacts, but the LLM is still the executor — a determined LLM can rationalize past any text-based rule. Compliance scoring (v9.13.0) is self-graded. The user is the final judge of quality.
+12 enforcement vectors (3 tiers) shift compliance to verifiable artifacts, but LLM is executor. Compliance scoring is bash-mechanical (v9.13.3). User is final judge.
 
-**Verified WORKING in the current environment** (2-loop audit, 2026-08-23):
-1. Cross-session persistence of `/home/user_skills/.st-activation-log` — 326 entries, 38 days, 0 monotonicity violations
-2. `clawhub inspect` + `clawhub --no-input update --force` drift detection + force-update (v9.12.0 → v9.13.0 observed mid-activation)
-3. 3-way version sync: registry = repo `main@65b6bf4` = installed skill = v9.13.0; index.html matches (Check 10)
-4. Popup server `:3000` serving HTTP 200 via curl + raw TCP socket; Caddy gateway on internal port 81
-5. `clawhub --version` exits 1 (quirk reproduces exactly as documented)
-6. `/home/user_skills/` is world-writable 0777, owner `z:z` (bash stat + python3 os.stat agree)
-7. All 12 runtime dependencies present (bash, grep -P, sha256sum, python3, curl, ss, zip, git, setsid, awk, sed, clawhub)
+**Verified working**: E9 persistence (326 entries/38 days), clawhub drift detection, 3-way version sync, popup :3000, all 12 runtime deps.
+**Not working/unverifiable**: E7 token is version-derived (PARTIAL), no session ID in E9 log, no PAT in clawhub-installed sandboxes, no $HOME/.stellar-trails-repo, popup user-visibility unverifiable, prose rots.
+**Rule of thumb**: Prose rots faster than bash — re-audit regularly.
 
-**Found NOT working / overstated / unverifiable** (corrected v9.13.1):
-1. E7 token is version-derived (`sha256("<version>\n")[:16]`), not session-scoped — identical across concurrent sessions. Gate proves "someone hashed", never "this agent ran Step 1". Matrix: NO → PARTIAL.
-2. E9 log format mismatch: documented `session=`/`tokens=YES` fields the Step 5 bash never wrote — corrected to actual output (`token=<hash> steps=5/5 banner=YES`). "Session IDs are recorded by platform" was false.
-3. No session ID attribution: the log proves WHEN, never WHO — concurrent sessions interleave indistinguishably.
-4. No PAT in clawhub-installed sandboxes: every authenticated GitHub operation (auth'd reads, any write op, CI log fetch, tag push, auto git-identity) is unavailable; only unauthenticated reads work (rate-limited).
-5. No `$HOME/.stellar-trails-repo/` in clawhub-installed sandboxes: the skill arrives from `/home/user_skills/stellar-trails.zip`, not a git clone. SSV is skipped gracefully.
-6. Popup user-side visibility: `:3000` serving confirmed internally, but whether the user's preview panel renders it cannot be tested from inside the sandbox.
-7. **Prose rots**: documentation claims drift from reality over time — "three enforcement layers" (superseded by 12 vectors/3 tiers in v9.13.0) and "QA Attestation" (renamed PCR per CHANGELOG, then PCR itself removed) survived as stale references until this audit.
-
-**Rule of thumb**: Prose rots faster than bash — re-audit documentation claims against the live environment regularly.
-
-Research (Lost in the Middle, arXiv 2307.03172) shows inherent ~70-85% compliance ceilings on SOTA models for complex multi-step prompts. The v9.0.0+ enforcement vectors raise the realistic ceiling to ~90% via text + sandbox-native mechanisms. Reaching ~98% requires a harness-level verifier script that scans the transcript for required prints/gates. 100% guaranteed compliance requires platform-level enforcement (ClawHub rejecting non-compliant invocations) — out of scope for skill authoring.
+Research (Lost in the Middle, arXiv 2307.03172): ~70-85% compliance ceiling via text. v9.0.0+ raises to ~90%. 98% needs harness-level verifier. 100% needs platform enforcement.
+```
