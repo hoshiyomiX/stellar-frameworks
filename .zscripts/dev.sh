@@ -44,6 +44,17 @@ PORT="${PORT:-3000}"
 PID_FILE="$ZSCRIPTS_DIR/st-devsh.pid"
 LOG_FILE="/tmp/st-devsh.log"
 
+# v9.14.1: Auto-install stellar-trails if missing (survives container reboot)
+# /start.sh executes .zscripts/dev.sh at container boot (line 333).
+# If stellar-trails is not in stages.yaml (official skills), it won't be
+# auto-extracted by /start.sh. This block ensures it's installed before
+# popup server starts, so Skill() invoke works on first try.
+ST_SKILL_MD="/home/z/my-project/skills/stellar-trails/SKILL.md"
+if [ ! -f "$ST_SKILL_MD" ]; then
+  echo "[dev.sh] stellar-trails missing — auto-installing via clawhub..."
+  clawhub install stellar-trails --force 2>/dev/null && echo "[dev.sh] ✓ stellar-trails installed" || echo "[dev.sh] ⚠ clawhub install failed (network?) — will retry on next Skill() invoke via Step 4a-pre"
+fi
+
 mkdir -p "$ZSCRIPTS_DIR"
 cd "$ZSCRIPTS_DIR"
 

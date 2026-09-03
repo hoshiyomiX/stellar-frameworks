@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.14.0
+- **version**: 9.14.1
 
 ---
 
@@ -306,6 +306,13 @@ fi
 ORACLE_VERSION=$(python3 -c "import json,sys; d=json.load(sys.stdin); print((d.get('latestVersion') or {}).get('version') or '')" < /tmp/st-clawhub-oracle.json || echo "")
 echo "  E11 oracle cross-check: registry latest = v${ORACLE_VERSION:-<parse failed>}"
 SKILL_DIR="/home/z/my-project/skills/stellar-trails"; USER_SKILLS_DIR="/home/user_skills"; ZSCRIPTS="/home/z/my-project/.zscripts"
+# v9.14.1: Install-if-missing — if skill was wiped by container reboot (not in stages.yaml),
+# auto-install via clawhub before proceeding to file verification.
+if [ ! -f "$SKILL_DIR/SKILL.md" ]; then
+  echo "⚠️ Step 4a-pre: SKILL.md missing — auto-installing stellar-trails via clawhub..."
+  clawhub install stellar-trails --force || { echo "✗ Step 4a-pre FAILED: clawhub install failed"; exit 1; }
+  echo "✓ Step 4a-pre: stellar-trails installed via clawhub"
+fi
 FILES_OK="yes"
 for f in SKILL.md procedure/phases.md dev.sh index.html chibi.svg; do [ ! -f "$SKILL_DIR/$f" ] && echo "✗ Step 4 WARNING: missing $f" && FILES_OK="no"; done
 if [ "$FILES_OK" = "yes" ]; then echo "✓ Step 4a: all skill files present"; else echo "✗ Step 4a FAILED: some files missing — graceful degradation"; exit 1; fi
