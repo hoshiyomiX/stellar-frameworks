@@ -1,5 +1,5 @@
 #!/bin/bash
-# stellar-trails dev server v9.11.7 — improved from v7.2.2 base
+# stellar-trails dev server v9.14.2 — improved from v7.2.2 base
 #
 # Serves /home/z/my-project/.zscripts/ on port :3000 with Cache-Control: no-store
 # headers (bypass browser heuristic caching).
@@ -75,11 +75,21 @@ if [ -f "$PID_FILE" ]; then
   if [ -n "$OLD_PID" ] && [ -d "/proc/$OLD_PID" ]; then
     OLD_CMDLINE=$(tr '\0' ' ' < "/proc/$OLD_PID/cmdline" 2>/dev/null)
     if echo "$OLD_CMDLINE" | grep -q 'dev\.sh'; then
-      log "Already running (PID $OLD_PID, cmdline: $OLD_CMDLINE) — not starting"
-      exit 0
+      # v9.14.2: PORT HEALTH CHECK — PID exists + cmdline matches, BUT is :3000 actually listening?
+      # Fixes: SIGKILL'd dev.sh leaves zombie/reused PID that passes cmdline check but isn't serving.
+      # If PID exists but port not listening → process is dead/zombie → clean up + start fresh.
+      if ss -tlnp 2>/dev/null | grep -q ":$PORT "; then
+        log "Already running (PID $OLD_PID, cmdline: $OLD_CMDLINE, port :$PORT OK) — not starting"
+        exit 0
+      else
+        log "PID $OLD_PID cmdline matches dev.sh BUT port :$PORT not listening — zombie/stale, cleaning up"
+        kill -9 "$OLD_PID" 2>/dev/null || true
+        rm -f "$PID_FILE"
+      fi
+    else
+      log "PID $OLD_PID is not dev.sh (cmdline: $OLD_CMDLINE) — stale PID file, cleaning up"
+      rm -f "$PID_FILE"
     fi
-    log "PID $OLD_PID is not dev.sh (cmdline: $OLD_CMDLINE) — stale PID file, cleaning up"
-    rm -f "$PID_FILE"
   else
     log "Stale PID file (PID $OLD_PID not running) — cleaning up"
     rm -f "$PID_FILE"
