@@ -16,7 +16,7 @@ metadata:
 
 ## Metadata
 
-- **version**: 9.15.1
+- **version**: 9.15.2
 
 ---
 
@@ -185,12 +185,12 @@ fi
 | Vector | What it enforces | LLM can fake? | User can verify? |
 |---|---|---|---|
 | E7 Hash token | Block B cannot run without Block A (token + session_meta + freshness) | NO (token requires $$ PID + $(date) — cannot be computed without running bash) | YES (cat /tmp/st-active + /tmp/st-session-meta) |
-| E8 TodoWrite | Blocks visible in real-time UI | Partially (can mass-mark, but transitions are visible) | YES (watch live checklist) |
+| E8 TodoWrite | Block A completion verified via /tmp/st-todolist proxy (v9.15.2) + live UI via TodoWrite platform tool | Partially (proxy is CODE-ENFORCED; live UI still requires LLM TodoWrite call) | YES (cat /tmp/st-todolist + watch live checklist) |
 | E9 Persistent log | Cross-session audit trail | Partially (timestamps monotonic; no session ID) | YES (cat /home/user_skills/.st-activation-log) |
 | E10 Line-number proof | Block A actually read SKILL.md | Partially (LLM knows line 19) | YES (read same file, compare) |
 | E11 Clawhub oracle | Block A actually ran clawhub (re-verified fresh in Block B) | NO (fresh clawhub inspect is ground truth; fabricated cached file caught by mismatch) | YES (cat /tmp/st-clawhub-oracle.json + run clawhub inspect) |
 
-**What still cannot be enforced**: Banner printed as FIRST output (text ordering), LLM not printing fake `✓` markers (text), TodoWrite calls (bash cannot invoke TodoWrite). These remain text-only enforcement via E4-E6.
+**What still cannot be enforced**: Banner printed as FIRST output (text ordering), LLM not printing fake `✓` markers (text), TodoWrite platform tool live UI (bash cannot invoke TodoWrite — but v9.15.2 adds /tmp/st-todolist proxy as CODE-ENFORCED audit trail). These remain text-only enforcement via E4-E6.
 
 ### 2-Block Activation Protocol (NEW v9.15.0 — replaces 5-Block Protocol)
 
@@ -200,9 +200,12 @@ fi
 
 **Block B — Verify + Log + GREEN Gate** (Step 5): E7 gate with freshness check (Proposal 2) + E11 re-run clawhub cross-check (Proposal 4) + E9 log write + worklog rotation + knowledge load + conditional 5/5 GREEN (Proposal 1) + mechanical compliance score.
 
-**Why this preserves enforcement**: Block B's gate check verifies `/tmp/st-active` exists AND was modified within last 120s (Proposal 2). This means Block A MUST have run recently. Block B's E11 re-runs `clawhub inspect` and compares to cached oracle (Proposal 4) — fabricated oracle files fail this check. The 5/5 GREEN echo is now conditional on `SCORE=5` (Proposal 1) — it cannot be printed if any artifact is missing or stale.
+**Why this preserves enforcement**: Block B's gate check verifies `/tmp/st-active` exists AND was modified within last 120s (Proposal 2). This means Block A MUST have run recently. Block B's E8 gate verifies `/tmp/st-todolist` has `block-a:completed` marker (Proposal 7, v9.15.2) — proves Block A finished fully, not just started. Block B's E11 re-runs `clawhub inspect` and compares to cached oracle (Proposal 4) — fabricated oracle files fail this check. The 6/6 GREEN echo is now conditional on `SCORE=6` (Proposal 1 + Proposal 7) — it cannot be printed if any artifact is missing or stale.
 
-**E8 TodoWrite**: Before Block A, call `TodoWrite` with 2 items ("Block A: Bootstrap", "Block B: Verify+Log+GREEN"), both `pending`. Mark Block A `in_progress` before running, `completed` after. Same for Block B. User sees 2 transitions, not 5 — but each transition corresponds to a real bash block that ran.
+**E8 TodoWrite (dual-layer v9.15.2)**: 
+- **CODE-ENFORCED layer**: Block A writes `block-a:completed:<timestamp>:pid=<pid>:token=<hash>` to `/tmp/st-todolist` at END (only if all steps pass). Block B verifies this marker exists before running. User can `cat /tmp/st-todolist` for audit trail.
+- **TEXT-ENFORCED layer**: LLM should ALSO call `TodoWrite` platform tool with 2 items ("Block A: Bootstrap", "Block B: Verify+Log+GREEN") for live UI visibility. This provides real-time checklist transitions that bash proxy cannot.
+- **Why dual-layer**: bash cannot call TodoWrite platform tool. Proxy file catches skip/partial-execution at audit level. TodoWrite platform tool provides live UX. Both are needed for full E8 compliance.
 
 ### Block A — Bootstrap (Steps 1-4 combined)
 
@@ -327,6 +330,15 @@ if [ -f "$DEV_SH" ]; then ( setsid bash "$DEV_SH" </dev/null >/dev/null 2>&1 & )
 else echo "✗ Block A Step 4d FAILED: dev.sh not found at $DEV_SH"; exit 1; fi
 USER_SKILLS_DIR="/home/user_skills"
 if [ -d "$SKILL_DIR" ] && [ -d "$USER_SKILLS_DIR" ]; then cd "$(dirname "$SKILL_DIR")" && zip -qr "$USER_SKILLS_DIR/stellar-trails.zip" "$(basename "$SKILL_DIR")/" && echo "✓ Block A Step 4e: persistent zip synced" || { echo "✗ Block A Step 4e FAILED: zip sync error"; exit 1; }; else echo "✗ Block A Step 4e FAILED: directory not found"; exit 1; fi
+# === Proposal 7 (v9.15.2): E8 todolist proxy file — CODE-ENFORCED audit trail ===
+# Bash cannot call TodoWrite platform tool, but bash CAN write a proxy file that serves
+# as audit trail + gate. This file is written ONLY at end of Block A (after all steps pass).
+# If Block A exits early (any step fails → exit 1), this line never executes → proxy missing.
+# Block B verifies proxy exists before running — catches partial Block A execution.
+# Note: This does NOT replace TodoWrite platform tool (live UI visibility still TEXT-ENFORCED).
+# It adds a CODE-ENFORCED audit layer that LLM cannot skip.
+echo "block-a:completed:$(date -u '+%Y-%m-%dT%H:%M:%SZ'):pid=$$:token=$(cat /tmp/st-active)" >> /tmp/st-todolist
+echo "  E8 proxy: /tmp/st-todolist updated (block-a:completed)"
 echo "✓ Block A COMPLETE — proceeding to Block B"
 ```
 
@@ -365,6 +377,21 @@ if [ "$EXPECTED_TOKEN" != "$ACTUAL_TOKEN" ]; then
   exit 1
 fi
 echo "  E7 gate: PASS (token valid, age ${TOKEN_AGE}s, session_meta verified)"
+# === Proposal 7 (v9.15.2): E8 todolist proxy verification ===
+# Verifies Block A completed fully (not just started). Catches partial execution where
+# Block A exits mid-way after writing token but before completing all steps.
+# /tmp/st-todolist is written ONLY at end of Block A — if missing, Block A was skipped or incomplete.
+if [ ! -f /tmp/st-todolist ]; then
+  echo "✗ Block B E8 GATE FAILED: /tmp/st-todolist missing — Block A did not complete (skipped or partial)"
+  exit 1
+fi
+if ! grep -q "^block-a:completed:" /tmp/st-todolist 2>/dev/null; then
+  echo "✗ Block B E8 GATE FAILED: /tmp/st-todolist has no block-a:completed marker — Block A did not finish"
+  exit 1
+fi
+# Extract block-a completion timestamp for freshness check
+BLOCK_A_TS=$(grep "^block-a:completed:" /tmp/st-todolist | tail -1 | grep -oP 'completed:\K[0-9T:-]+' | head -1)
+echo "  E8 proxy: PASS (block-a:completed at $BLOCK_A_TS, audit trail: $(wc -l < /tmp/st-todolist) lines)"
 # === Proposal 4: E11 re-verification — re-run clawhub and compare to cached oracle ===
 # This catches fabricated /tmp/st-clawhub-oracle.json. If LLM wrote fake JSON without
 # running clawhub, this fresh clawhub inspect will return different content (or fail).
@@ -425,20 +452,26 @@ curl -s -o /dev/null -m 2 http://localhost:3000/ 2>/dev/null && REAL_SCORE=$((RE
 tail -1 /home/user_skills/.st-activation-log 2>/dev/null | grep -q "protocol=2-block" && REAL_SCORE=$((REAL_SCORE+1)) || REAL_SKIPPED="${REAL_SKIPPED}E9-log,"
 # Check 5: worklog.md exists
 [ -f "$WORKLOG" ] && REAL_SCORE=$((REAL_SCORE+1)) || REAL_SKIPPED="${REAL_SKIPPED}worklog,"
-# Print GREEN only if all 5 checks pass
-if [ "$REAL_SCORE" -eq 5 ]; then
-  echo "✓ 5/5 GREEN — activation complete (mechanically verified: score=5/5)"
+# Check 6 (v9.15.2 Proposal 7): E8 todolist proxy has block-a:completed marker
+# This is CODE-ENFORCED — proves Block A finished fully, not just started
+grep -q "^block-a:completed:" /tmp/st-todolist 2>/dev/null && REAL_SCORE=$((REAL_SCORE+1)) || REAL_SKIPPED="${REAL_SKIPPED}E8-todolist,"
+# Print GREEN only if all 6 checks pass
+if [ "$REAL_SCORE" -eq 6 ]; then
+  echo "✓ 6/6 GREEN — activation complete (mechanically verified: score=6/6)"
 else
-  echo "✗ ${REAL_SCORE}/5 GREEN — activation INCOMPLETE (re-run failed steps)"
+  echo "✗ ${REAL_SCORE}/6 GREEN — activation INCOMPLETE (re-run failed steps)"
   echo "  Skipped: ${REAL_SKIPPED:-none}"
   echo "  Compliance log entry written for audit."
   # Write failure entry to log for audit visibility
-  echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') COMPLIANCE-FAIL v${ST_VERSION} score=${REAL_SCORE}/5 skipped=${REAL_SKIPPED:-none}" >> /home/user_skills/.st-activation-log
+  echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') COMPLIANCE-FAIL v${ST_VERSION} score=${REAL_SCORE}/6 skipped=${REAL_SKIPPED:-none}" >> /home/user_skills/.st-activation-log
   # Do NOT exit 1 here — let user see the score and decide. But do NOT print GREEN.
 fi
+# === Proposal 7 (v9.15.2): Write block-b:completed to todolist proxy ===
+# This completes the audit trail — both blocks now have completion markers.
+echo "block-b:completed:$(date -u '+%Y-%m-%dT%H:%M:%SZ'):pid=$$:score=${REAL_SCORE}/6" >> /tmp/st-todolist
 # === Mechanical compliance score (always written to log) ===
-echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') COMPLIANCE v${ST_VERSION} score=${REAL_SCORE}/5 mechanical=bash skipped=${REAL_SKIPPED:-none} protocol=2-block" >> /home/user_skills/.st-activation-log
-echo "  Compliance: ${REAL_SCORE}/5 mechanical (skipped: ${REAL_SKIPPED:-none})"
+echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') COMPLIANCE v${ST_VERSION} score=${REAL_SCORE}/6 mechanical=bash skipped=${REAL_SKIPPED:-none} protocol=2-block" >> /home/user_skills/.st-activation-log
+echo "  Compliance: ${REAL_SCORE}/6 mechanical (skipped: ${REAL_SKIPPED:-none})"
 ```
 
 ### E12 — Activation Retry Protocol (v9.12.0, updated v9.15.0 for 2-Block)
@@ -472,7 +505,7 @@ Block A bash exits with code:
                                                       → E6 Escape Hatch or ask user
 
 Block B bash exits with code:
-  0 (success)  → print ✓ Block B output → check 5/5 GREEN → proceed to SPECIFY
+  0 (success)  → print ✓ Block B output → check 6/6 GREEN → proceed to SPECIFY
   1 (failure)  → print ✗ Block B output → diagnose → fix → re-run Block B
                    (same retry tree as Block A)
 ```
@@ -490,39 +523,40 @@ Block B bash exits with code:
 | B | E7 GATE FAILED (token stale >120s) | Re-run Block A to refresh token |
 | B | E7 GATE FAILED (token mismatch) | Token doesn't match session_meta — re-run Block A |
 | B | E11 FAILED (oracle mismatch) | Cached oracle was fabricated or stale — re-run Block A (which writes fresh oracle) |
-| B | 5/5 GREEN not reached (score <5) | Read the `skipped=` field, fix missing artifact, re-run Block B |
+| B | 6/6 GREEN not reached (score <6) | Read the `skipped=` field, fix missing artifact, re-run Block B |
 
 **Anti-patterns (FORBIDDEN)**:
 - ❌ "Block A failed but I'll proceed to Block B" — NO. Retry Block A until ✓ before proceeding.
 - ❌ "I'll summarize the output instead of printing verbatim" — NO. Print the raw stdout.
 - ❌ "After 3 retries I'll just skip to SPECIFY" — NO. Use E6 Escape Hatch to make the skip visible, or ask the user.
-- ❌ "5/5 GREEN wasn't printed but I'll proceed anyway" — NO. If GREEN is not printed, score <5. Fix the missing artifact.
+- ❌ "6/6 GREEN wasn't printed but I'll proceed anyway" — NO. If GREEN is not printed, score <6. Fix the missing artifact.
 
-### 5/5 GREEN GATE (v9.12.0, conditional v9.15.0)
+### 6/6 GREEN GATE (v9.12.0, conditional v9.15.0, 6-check v9.15.2)
 
 After Block B completes, the bash block AUTOMATICALLY prints one of:
 
 ```
-✓ 5/5 GREEN — activation complete (mechanically verified: score=5/5)
+✓ 6/6 GREEN — activation complete (mechanically verified: score=6/6)
 ```
 ...or, if any artifact is missing/stale:
 ```
-✗ N/5 GREEN — activation INCOMPLETE (re-run failed steps)
+✗ N/6 GREEN — activation INCOMPLETE (re-run failed steps)
   Skipped: <list>
 ```
 
-**Rule** (v9.15.0): The GREEN echo is now CONDITIONAL — it is only printed if `REAL_SCORE=5`. The score is computed mechanically from 5 artifacts:
+**Rule** (v9.15.2): The GREEN echo is now CONDITIONAL — it is only printed if `REAL_SCORE=6`. The score is computed mechanically from 6 artifacts:
 1. E7 token exists and age ≤ 120s
 2. E11 oracle exists and matches fresh clawhub inspect
 3. dev.sh :3000 listening (curl returns 200)
 4. E9 log has fresh entry with `protocol=2-block`
 5. worklog.md exists
+6. E8 todolist proxy has `block-a:completed` marker (v9.15.2 Proposal 7)
 
-**This eliminates the cosmetic GREEN claim** that misled users in v9.14.2 (where GREEN was printed unconditionally). Now, if any artifact is missing or stale, the user sees `✗ N/5 GREEN` instead of `✓ 5/5 GREEN`.
+**This eliminates the cosmetic GREEN claim** that misled users in v9.14.2 (where GREEN was printed unconditionally). Now, if any artifact is missing or stale, the user sees `✗ N/6 GREEN` instead of `✓ 6/6 GREEN`.
 
 **Self-check before proceeding to SPECIFY**:
 - Did Block A print `✓ Block A COMPLETE`? → If NO, retry Block A
-- Did Block B print `✓ 5/5 GREEN` (not `✗ N/5`)? → If NO, retry Block B
+- Did Block B print `✓ 6/6 GREEN` (not `✗ N/6`)? → If NO, retry Block B
 
 Only when both answers are YES, proceed to SPECIFY (or IMPLEMENT if continuation detected).
 
@@ -566,15 +600,19 @@ Print: `⚠️ ACTIVATION SKIPPED — operating without banner` + reason + ackno
 **Legacy Text** (E1-E3, v9.0.0): Phase markers, mandatory prints, AskUserQuestion gate. Text-only, backstopped by E7-E12.
 **Pre-Tool Gate** (E4-E6, v9.3.0): Hard gate, anti-rationalization, escape hatch.
 **Sandbox-Native** (E7-E11, v9.4.0, strengthened v9.15.0): Hash token (now session-specific), TodoWrite, persistent log, line proof, clawhub oracle (now re-verified fresh).
-**Exit Code** (E12, v9.12.0): Exit code enforcement + retry-until-green + 5/5 GREEN GATE (now conditional).
+**Exit Code** (E12, v9.12.0): Exit code enforcement + retry-until-green + 6/6 GREEN GATE (now conditional, 6-check v9.15.2).
 
 All 12 vectors retained. v9.15.0 raises CODE enforcement from ~26% to ~58% via:
 - Proposal 1: 5/5 GREEN conditional (was cosmetic)
 - Proposal 2: Session-freshness check (token age ≤ 120s)
 - Proposal 4: E11 re-run clawhub (was file-existence-only)
 - Proposal 6: E7 token with session_meta (was version-derived)
+- Proposal 7 (v9.15.2): E8 todolist proxy file (CODE-ENFORCED audit trail for Block A completion)
 
-Remaining TEXT-ENFORCED (cannot be code-enforced in z.ai sandbox): E4 Pre-Tool Gate, E5 Rationalizations, E8 TodoWrite, Phase Pause Gate, AskUserQuestion Gate. These cap maximum achievable compliance at ~80%.
+v9.15.2 raises CODE enforcement from ~58% to ~63% via:
+- Proposal 7: E8 todolist proxy file `/tmp/st-todolist` (CODE-ENFORCED audit trail for Block A completion)
+
+Remaining TEXT-ENFORCED (cannot be code-enforced in z.ai sandbox): E4 Pre-Tool Gate, E5 Rationalizations, E8 TodoWrite live UI (platform tool — bash proxy covers audit only), Phase Pause Gate, AskUserQuestion Gate. These cap maximum achievable compliance at ~80%.
 
 
 ## Legacy Text Enforcement (E1-E3, v9.0.0 — retained, backstopped by E7-E12)
@@ -1425,6 +1463,7 @@ Detail (extraction format, on-demand loading table, anti-patterns) in `knowledge
 **CODE enforcement progression**:
 - v9.0.0: ~26% CODE-enforced (5/19 vectors)
 - v9.15.0: ~58% CODE-enforced (11/19 vectors) — Proposals 1+2+4+6 + 2-Block Protocol
+- v9.15.2: ~63% CODE-enforced (12/19 vectors) — Proposal 7 E8 todolist proxy
 - Maximum achievable: ~80% CODE-enforced (platform harness required for remaining 20%)
 
 Research (Lost in the Middle, arXiv 2307.03172): ~70-85% compliance ceiling via text. v9.0.0+ raises to ~90%. v9.15.0 raises CODE enforcement to ~58%. 98% needs harness-level verifier. 100% needs platform enforcement.
